@@ -107,26 +107,32 @@
                 app:layout_constraintBottom_toBottomOf="parent"/>
 
             <!-- Share -->
-            <androidx.appcompat.widget.AppCompatImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShare"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/outline_share_24"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/outline_share_24"
+                app:iconTint="@color/red"
+                app:backgroundTint="@android:color/transparent"
                 app:layout_constraintEnd_toStartOf="@id/btnDelete"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:rippleColor="@color/red_10"/>
 
             <!-- Delete -->
-            <androidx.appcompat.widget.AppCompatImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDelete"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/outline_delete_24"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/outline_delete_24"
+                app:iconTint="@color/red"
+                app:backgroundTint="@android:color/transparent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:rippleColor="@color/red_10"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
