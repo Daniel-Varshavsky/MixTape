@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.mixtape.adapters.MediaAdapter
+import com.example.mixtape.adapters.EditableMediaAdapter
 import com.example.mixtape.model.MediaItem
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
@@ -15,15 +15,17 @@ class EditPlaylistDialog : DialogFragment() {
 
     private var playlistName: String = ""
     private var mediaItems: MutableList<MediaItem> = mutableListOf()
-    private lateinit var mediaAdapter: MediaAdapter
+    private var availableTags: List<String> = emptyList()
+    private lateinit var editableMediaAdapter: EditableMediaAdapter
 
     companion object {
-        fun newInstance(playlistName: String, mediaItems: List<MediaItem>): EditPlaylistDialog {
+        fun newInstance(playlistName: String, mediaItems: List<MediaItem>, availableTags: List<String>): EditPlaylistDialog {
             val fragment = EditPlaylistDialog()
             val args = Bundle()
             args.putString("PLAYLIST_NAME", playlistName)
             fragment.arguments = args
             fragment.mediaItems.addAll(mediaItems)
+            fragment.availableTags = availableTags
             return fragment
         }
     }
@@ -56,13 +58,20 @@ class EditPlaylistDialog : DialogFragment() {
 
         dialogTitle.text = "Edit: $playlistName"
 
-        // Setup RecyclerView with current items
+        // Setup RecyclerView with editable media adapter
         itemsRecycler.layoutManager = LinearLayoutManager(requireContext())
-        mediaAdapter = MediaAdapter(mediaItems) { mediaItem ->
-            // Handle item click in edit mode - show options to remove/edit tags
-            showMediaItemOptions(mediaItem)
-        }
-        itemsRecycler.adapter = mediaAdapter
+        editableMediaAdapter = EditableMediaAdapter(
+            mediaItems,
+            availableTags,
+            onItemRemoved = { item ->
+                editableMediaAdapter.removeItem(item)
+            },
+            onItemTagsChanged = { item, newTags ->
+                // Tags have been updated on the item already
+                // Could trigger additional callbacks here if needed
+            }
+        )
+        itemsRecycler.adapter = editableMediaAdapter
 
         btnClose.setOnClickListener {
             dismiss()
@@ -91,14 +100,5 @@ class EditPlaylistDialog : DialogFragment() {
             ).show()
             dismiss()
         }
-    }
-
-    private fun showMediaItemOptions(mediaItem: MediaItem) {
-        // TODO: Show options to remove item or edit tags
-        android.widget.Toast.makeText(
-            requireContext(),
-            "Options for ${mediaItem.title} (remove/edit tags)",
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
     }
 }

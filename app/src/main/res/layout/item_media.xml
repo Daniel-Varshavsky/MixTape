@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@color/black"
     app:strokeColor="@color/red"
@@ -102,7 +103,8 @@
             android:orientation="horizontal"
             app:layout_constraintStart_toEndOf="@id/mediaIcon"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/mediaAlbum" />
+            app:layout_constraintTop_toBottomOf="@id/mediaAlbum"
+            tools:listitem="@layout/item_tag_chip"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

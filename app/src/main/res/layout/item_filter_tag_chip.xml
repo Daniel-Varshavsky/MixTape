@@ -8,8 +8,9 @@
     android:layout_marginBottom="4dp"
     android:textColor="@color/white"
     android:textSize="10sp"
-    app:chipBackgroundColor="@color/red_dark"
+    app:chipBackgroundColor="@color/black"
     app:chipStrokeColor="@color/red"
     app:chipStrokeWidth="1dp"
     app:chipCornerRadius="12dp"
-    app:chipMinHeight="24dp" />
+    app:chipMinHeight="24dp"
+    android:checkable="true"/>

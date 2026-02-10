@@ -105,16 +105,9 @@ class PlaylistActivity : AppCompatActivity() {
         // Filter tag chips RecyclerView
         val filterTagsRecycler = findViewById<RecyclerView>(R.id.filterTagsChipsRecycler)
         filterTagsRecycler.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
-        filterTagChipAdapter = FilterTagChipAdapter(availableTags) { tag ->
-            // When a tag chip is clicked, add it to the filter
-            val filterTagsInput = findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.filterTags)
-            val currentText = filterTagsInput.text?.toString()?.trim() ?: ""
-
-            if (currentText.isEmpty()) {
-                filterTagsInput.setText(tag)
-            } else if (!currentText.contains(tag)) {
-                filterTagsInput.setText("$currentText, $tag")
-            }
+        filterTagChipAdapter = FilterTagChipAdapter(availableTags) { tag, isSelected ->
+            // Handle tag selection for filtering
+            updateTagFilters()
         }
         filterTagsRecycler.adapter = filterTagChipAdapter
     }
@@ -203,7 +196,6 @@ class PlaylistActivity : AppCompatActivity() {
         val titleFilter = findViewById<TextInputEditText>(R.id.filterTitle)
         val artistFilter = findViewById<TextInputEditText>(R.id.filterArtist)
         val albumFilter = findViewById<TextInputEditText>(R.id.filterAlbum)
-        val tagsFilter = findViewById<TextInputEditText>(R.id.filterTags)
         val minDurationFilter = findViewById<EditText>(R.id.filterMinDuration)
         val maxDurationFilter = findViewById<EditText>(R.id.filterMaxDuration)
 
@@ -218,7 +210,6 @@ class PlaylistActivity : AppCompatActivity() {
         titleFilter.addTextChangedListener(textWatcher)
         artistFilter.addTextChangedListener(textWatcher)
         albumFilter.addTextChangedListener(textWatcher)
-        tagsFilter.addTextChangedListener(textWatcher)
         minDurationFilter.addTextChangedListener(textWatcher)
         maxDurationFilter.addTextChangedListener(textWatcher)
 
@@ -245,15 +236,16 @@ class PlaylistActivity : AppCompatActivity() {
         val titleFilter = findViewById<TextInputEditText>(R.id.filterTitle)
         val artistFilter = findViewById<TextInputEditText>(R.id.filterArtist)
         val albumFilter = findViewById<TextInputEditText>(R.id.filterAlbum)
-        val tagsFilter = findViewById<TextInputEditText>(R.id.filterTags)
         val minDurationFilter = findViewById<EditText>(R.id.filterMinDuration)
         val maxDurationFilter = findViewById<EditText>(R.id.filterMaxDuration)
+
+        val selectedTags = filterTagChipAdapter.getSelectedTags()
 
         currentFilter = FilterOptions(
             titleFilter = titleFilter.text?.toString()?.trim() ?: "",
             artistFilter = artistFilter.text?.toString()?.trim() ?: "",
             albumFilter = albumFilter.text?.toString()?.trim() ?: "",
-            tagFilter = tagsFilter.text?.toString()?.trim() ?: "",
+            tagFilter = selectedTags.joinToString(", "),
             minDuration = minDurationFilter.text?.toString()?.toIntOrNull()?.times(60) ?: 0,
             maxDuration = maxDurationFilter.text?.toString()?.toIntOrNull()?.times(60) ?: Int.MAX_VALUE
         )
@@ -265,9 +257,10 @@ class PlaylistActivity : AppCompatActivity() {
         findViewById<TextInputEditText>(R.id.filterTitle).text?.clear()
         findViewById<TextInputEditText>(R.id.filterArtist).text?.clear()
         findViewById<TextInputEditText>(R.id.filterAlbum).text?.clear()
-        findViewById<TextInputEditText>(R.id.filterTags).text?.clear()
         findViewById<EditText>(R.id.filterMinDuration).text?.clear()
         findViewById<EditText>(R.id.filterMaxDuration).text?.clear()
+
+        filterTagChipAdapter.clearSelection()
 
         currentFilter = FilterOptions()
         applySortAndFilter()
@@ -407,6 +400,14 @@ class PlaylistActivity : AppCompatActivity() {
         // TODO: Toggle repeat state and save preference
     }
 
+    private fun updateTagFilters() {
+        val selectedTags = filterTagChipAdapter.getSelectedTags()
+        currentFilter = currentFilter.copy(
+            tagFilter = selectedTags.joinToString(", ")
+        )
+        applySortAndFilter()
+    }
+
     private fun logout() {
         Toast.makeText(this, "Logout functionality will be added later", Toast.LENGTH_SHORT).show()
         // TODO: Implement logout when authentication is added
@@ -415,7 +416,8 @@ class PlaylistActivity : AppCompatActivity() {
     private fun openEditPlaylistDialog() {
         val dialog = EditPlaylistDialog.newInstance(
             currentPlaylist?.name ?: "Playlist",
-            allMediaItems
+            allMediaItems,
+            availableTags
         )
         dialog.show(supportFragmentManager, "EditPlaylist")
     }

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="@color/black"
+    app:strokeColor="@color/red"
+    app:strokeWidth="1dp"
+    app:cardCornerRadius="12dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- Media Type Icon -->
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/mediaIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/outline_music_note_2_24"
+            android:background="@drawable/media_icon_background"
+            android:padding="6dp"
+            app:tint="@color/white"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Title -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/mediaTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Title"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            app:layout_constraintStart_toEndOf="@id/mediaIcon"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintTop_toTopOf="@id/mediaIcon" />
+
+        <!-- Artist -->
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/mediaArtist"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Artist"
+            android:textColor="@color/gray_400"
+            android:textSize="12sp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            app:layout_constraintStart_toEndOf="@id/mediaIcon"
+            app:layout_constraintEnd_toStartOf="@id/btnRemove"
+            app:layout_constraintTop_toBottomOf="@id/mediaTitle" />
+
+        <!-- Remove Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRemove"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            style="@style/Widget.Material3.Button.IconButton"
+            app:icon="@drawable/outline_delete_24"
+            app:iconTint="@color/red"
+            app:backgroundTint="@android:color/transparent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Current Tags -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/currentTagsRecycler"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="12dp"
+            android:orientation="horizontal"
+            android:nestedScrollingEnabled="false"
+            app:layout_constraintStart_toEndOf="@id/mediaIcon"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/mediaArtist"
+            tools:listitem="@layout/item_tag_chip"/>
+
+        <!-- Add Tags Button / Add Tags Section -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddTags"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="+ Add Tags"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:backgroundTint="@color/black"
+            app:strokeColor="@color/red"
+            app:strokeWidth="1dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            app:layout_constraintStart_toEndOf="@id/mediaIcon"
+            app:layout_constraintTop_toBottomOf="@id/currentTagsRecycler" />
+
+        <!-- Add Tags Section (Initially Hidden) -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/addTagsSection"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="12dp"
+            app:layout_constraintStart_toEndOf="@id/mediaIcon"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/currentTagsRecycler">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select from existing list:"
+                android:textColor="@color/gray_400"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/availableTagsRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_filter_tag_chip"/>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancelAddTags"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Cancel"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:backgroundTint="@color/black"
+                    app:strokeColor="@color/red"
+                    app:strokeWidth="1dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnApplyTags"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Apply"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:backgroundTint="@color/red"
+                    android:layout_marginStart="8dp"
+                    app:layout_constraintStart_toEndOf="@id/btnCancelAddTags"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,103 +1,117 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
     android:background="@drawable/bg_outline"
-    android:padding="24dp">
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layoutDirection="ltr"
+    android:textDirection="ltr">
 
-    <androidx.appcompat.widget.LinearLayoutCompat
+    <!-- Header -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_marginBottom="16dp">
 
-        <!-- Header -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/dialogTitle"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:text="Edit: My Favorites"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnCloseDialog" />
 
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/dialogTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="Edit: My Favorites"
-                android:textColor="@color/white"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/btnCloseDialog" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCloseDialog"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            style="@style/Widget.Material3.Button.IconButton"
+            app:icon="@drawable/outline_close_24"
+            app:iconTint="@color/white"
+            app:backgroundTint="@android:color/transparent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCloseDialog"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                style="@style/Widget.Material3.Button.IconButton"
-                app:icon="@drawable/outline_close_24"
-                app:iconTint="@color/white"
-                app:backgroundTint="@android:color/transparent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Header Separator -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/red"
+        android:layout_marginBottom="16dp" />
 
-        <!-- Header Separator -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/red"
-            android:layout_marginBottom="16dp" />
+    <!-- Add Song/Video Button with Dashed Border -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@drawable/dashed_border"
+        android:layout_marginBottom="16dp">
 
-        <!-- Add Song/Video Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddContent"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="match_parent"
             android:text="+ Add Song/Video"
             android:textColor="@color/white"
-            android:backgroundTint="@color/black"
-            app:strokeColor="@color/red"
-            app:strokeWidth="1dp"
-            android:layout_marginBottom="16dp" />
+            android:backgroundTint="@android:color/transparent"
+            app:strokeWidth="0dp"
+            app:cornerRadius="8dp" />
 
-        <!-- Current Items -->
+    </FrameLayout>
+
+    <!-- Current Items (Scrollable with Border) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/recyclerview_border">
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/editItemsRecycler"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            android:maxHeight="400dp" />
+            android:layout_height="match_parent"
+            android:layout_margin="12dp"
+            android:clipToPadding="false"
+            tools:listitem="@layout/item_editable_media"/>
 
-        <!-- Action Buttons -->
-        <androidx.appcompat.widget.LinearLayoutCompat
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="end">
+    </FrameLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCancel"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:text="Cancel"
-                android:textColor="@color/white"
-                android:backgroundTint="@color/black"
-                android:layout_marginEnd="8dp"
-                app:strokeColor="@color/red"
-                app:strokeWidth="1dp" />
+    <!-- Action Buttons -->
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSaveChanges"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:text="Save Changes"
-                android:textColor="@color/white"
-                android:backgroundTint="@color/red" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Cancel"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/black"
+            android:layout_marginEnd="8dp"
+            app:strokeColor="@color/red"
+            app:strokeWidth="1dp" />
 
-        </androidx.appcompat.widget.LinearLayoutCompat>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveChanges"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Save Changes"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/red" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
-</androidx.core.widget.NestedScrollView>
+</androidx.appcompat.widget.LinearLayoutCompat>
