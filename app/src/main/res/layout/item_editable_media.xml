@@ -20,7 +20,7 @@
             android:id="@+id/mediaIcon"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@drawable/outline_music_note_2_24"
+            android:src="@drawable/sharp_music_note_2_24"
             android:background="@drawable/media_icon_background"
             android:padding="6dp"
             app:tint="@color/white"

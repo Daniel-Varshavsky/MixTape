@@ -42,7 +42,7 @@ class EditableMediaAdapter(
 
         // Set icon based on media type
         when (item) {
-            is MediaItem.SongItem -> holder.icon.setImageResource(R.drawable.outline_music_note_2_24)
+            is MediaItem.SongItem -> holder.icon.setImageResource(R.drawable.sharp_music_note_2_24)
             is MediaItem.VideoItem -> holder.icon.setImageResource(R.drawable.outline_videocam_24)
         }
 
