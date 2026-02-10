@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="320dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:background="@drawable/bg_outline"
+    android:fillViewport="true">
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/menuTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Menu"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnCloseMenu" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCloseMenu"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/outline_close_24"
+                app:iconTint="@color/white"
+                app:backgroundTint="@android:color/transparent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Header Separator -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/red"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Back to Playlists -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBackToPlaylists"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Back to Playlists"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/black"
+            android:gravity="start|center_vertical"
+            android:layout_marginBottom="24dp"
+            app:strokeColor="@color/red"
+            app:strokeWidth="1dp"
+            app:rippleColor="@color/red_10"
+            app:icon="@drawable/outline_menu_open_24"
+            app:iconTint="@color/white" />
+
+        <!-- Sort Section -->
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sort"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"
+            app:drawableStartCompat="@drawable/swap"
+            app:drawableTint="@color/red"
+            android:drawablePadding="8dp" />
+
+        <!-- Sort By -->
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sort By"
+            android:textColor="@color/gray_400"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerSortBy"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_outline" />
+
+        <!-- Order -->
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Order"
+            android:textColor="@color/gray_400"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerOrder"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bg_outline" />
+
+        <!-- Filters Section (Collapsible) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/filtersHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/filtersTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Filters"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/filtersArrow"
+                app:drawableStartCompat="@drawable/outline_filter_alt_24"
+                app:drawableTint="@color/red"
+                android:drawablePadding="8dp" />
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/filtersArrow"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/rounded_keyboard_arrow_right_24"
+                app:tint="@color/red"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Filters Content (Initially Hidden) -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/filtersContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp">
+
+            <!-- Title Filter -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Filter by title"
+                android:textColorHint="@color/gray_400"
+                app:boxStrokeColor="@color/red"
+                app:hintTextColor="@color/red"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/filterTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Artist Filter -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Filter by artist"
+                android:textColorHint="@color/gray_400"
+                app:boxStrokeColor="@color/red"
+                app:hintTextColor="@color/red"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/filterArtist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Album Filter -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Filter by album"
+                android:textColorHint="@color/gray_400"
+                app:boxStrokeColor="@color/red"
+                app:hintTextColor="@color/red"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/filterAlbum"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Tags Filter -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Filter by tags"
+                android:textColorHint="@color/gray_400"
+                app:boxStrokeColor="@color/red"
+                app:hintTextColor="@color/red"
+                android:layout_marginBottom="8dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/filterTags"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Available Tags Chips -->
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Available tags:"
+                android:textColor="@color/gray_400"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/filterTagsChipsRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:nestedScrollingEnabled="false" />
+
+            <!-- Duration Filter -->
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Duration (minutes)"
+                android:textColor="@color/gray_400"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp">
+
+                <EditText
+                    android:id="@+id/filterMinDuration"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:hint="Min"
+                    android:inputType="number"
+                    android:textColor="@color/white"
+                    android:textColorHint="@color/gray_400"
+                    android:background="@drawable/bg_outline"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/durationSeparator"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/durationSeparator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    app:layout_constraintStart_toEndOf="@id/filterMinDuration"
+                    app:layout_constraintEnd_toStartOf="@id/filterMaxDuration"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <EditText
+                    android:id="@+id/filterMaxDuration"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:hint="Max"
+                    android:inputType="number"
+                    android:textColor="@color/white"
+                    android:textColorHint="@color/gray_400"
+                    android:background="@drawable/bg_outline"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    app:layout_constraintStart_toEndOf="@id/durationSeparator"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Clear Filters Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnClearFilters"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Clear Filters"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/black"
+                app:strokeColor="@color/red"
+                app:strokeWidth="1dp"
+                app:rippleColor="@color/red_10" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- Filters/Tags Separator -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/red"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Manage Tags Section (Collapsible) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/tagsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tagsTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Manage Tags"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tagsArrow"
+                app:drawableStartCompat="@drawable/outline_sell_24"
+                app:drawableTint="@color/red"
+                android:drawablePadding="8dp" />
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/tagsArrow"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/rounded_keyboard_arrow_right_24"
+                app:tint="@color/red"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Tags Content (Initially Hidden) -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/tagsContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Add New Tag -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Add new tag"
+                android:textColorHint="@color/gray_400"
+                app:boxStrokeColor="@color/red"
+                app:hintTextColor="@color/red"
+                app:endIconMode="custom"
+                app:endIconDrawable="@drawable/outline_add_24"
+                app:endIconTint="@color/red"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/addTagInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Tags RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/tagsRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</androidx.core.widget.NestedScrollView>

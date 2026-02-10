@@ -1,5 +1,6 @@
 package com.example.mixtape
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.adapters.PlaylistAdapter
 import com.example.mixtape.model.Playlist
+import com.example.mixtape.ui.AddPlaylistDialog
 
 class PlaylistSelectionActivity : AppCompatActivity() {
 
@@ -21,7 +23,12 @@ class PlaylistSelectionActivity : AppCompatActivity() {
         val addButton = findViewById<Button>(R.id.btnAddPlaylist)
 
         recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = PlaylistAdapter(fakePlaylists())
+        recycler.adapter = PlaylistAdapter(fakePlaylists()) { playlist ->
+            // Launch PlaylistActivity when a playlist is clicked
+            val intent = Intent(this, PlaylistActivity::class.java)
+            intent.putExtra("PLAYLIST_NAME", playlist.name)
+            startActivity(intent)
+        }
 
         addButton.setOnClickListener {
             AddPlaylistDialog().show(supportFragmentManager, "AddPlaylist")

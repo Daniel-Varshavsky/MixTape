@@ -9,8 +9,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.example.mixtape.model.Playlist
 
-class PlaylistAdapter(private val playlists: List<Playlist>) :
-    RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
+class PlaylistAdapter(
+    private val playlists: List<Playlist>,
+    private val onPlaylistClick: (Playlist) -> Unit = {}
+) : RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.playlistName)
@@ -18,6 +20,7 @@ class PlaylistAdapter(private val playlists: List<Playlist>) :
         val songs: TextView = view.findViewById(R.id.songCount)
         val videos: TextView = view.findViewById(R.id.videoCount)
         val btnDelete: View = view.findViewById(R.id.btnDelete)
+        val btnShare: View = view.findViewById(R.id.btnShare)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -34,10 +37,20 @@ class PlaylistAdapter(private val playlists: List<Playlist>) :
         holder.songs.text = "${p.songs} songs"
         holder.videos.text = "${p.videos} videos"
 
+        // Handle playlist click (open playlist)
+        holder.itemView.setOnClickListener {
+            onPlaylistClick(p)
+        }
+
+        holder.btnShare.setOnClickListener {
+            // TODO: Implement share functionality
+        }
+
         holder.btnDelete.setOnClickListener {
             AlertDialog.Builder(it.context)
                 .setMessage("Are you sure you want to delete this playlist?")
                 .setPositiveButton("Yes") { dialog, _ ->
+                    // TODO: Implement delete functionality
                     dialog.dismiss()
                 }
                 .setNegativeButton("No") { dialog, _ ->
@@ -46,7 +59,6 @@ class PlaylistAdapter(private val playlists: List<Playlist>) :
                 .show()
         }
     }
-
 
     override fun getItemCount() = playlists.size
 }

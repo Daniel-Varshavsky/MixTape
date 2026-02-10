@@ -1,10 +1,11 @@
-package com.example.mixtape
+package com.example.mixtape.ui
 
 import android.app.Dialog
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.EditText
 import androidx.fragment.app.DialogFragment
+import com.example.mixtape.R
 import com.google.android.material.button.MaterialButton
 
 class AddPlaylistDialog : DialogFragment() {
