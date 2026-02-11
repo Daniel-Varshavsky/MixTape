@@ -6,7 +6,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:background="@drawable/bg_outline"
     android:orientation="vertical"
-    android:padding="24dp"
+    android:padding="10dp"
     android:layoutDirection="ltr"
     android:textDirection="ltr">
 
@@ -14,6 +14,8 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
         android:layout_marginBottom="16dp">
 
         <com.google.android.material.textview.MaterialTextView
@@ -48,6 +50,8 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@color/red"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
         android:layout_marginBottom="16dp" />
 
     <!-- Add Song/Video Button with Dashed Border -->
@@ -55,6 +59,8 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="@drawable/dashed_border"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
         android:layout_marginBottom="16dp">
 
         <com.google.android.material.button.MaterialButton
@@ -69,12 +75,12 @@
 
     </FrameLayout>
 
-    <!-- Current Items (Scrollable with Border) -->
+    <!-- Current Items (Scrollable with Border) - Wider than other elements -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="14dp"
         android:background="@drawable/recyclerview_border">
 
         <androidx.recyclerview.widget.RecyclerView
@@ -92,7 +98,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="end"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancel"
