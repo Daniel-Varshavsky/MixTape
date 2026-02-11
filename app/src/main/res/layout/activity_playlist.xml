@@ -59,6 +59,7 @@
                 app:icon="@drawable/outline_menu_24"
                 app:iconTint="@color/white"
                 app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Open menu"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
@@ -72,6 +73,7 @@
                 app:icon="@drawable/outline_logout_24"
                 app:iconTint="@color/white"
                 app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Logout"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
@@ -178,6 +180,7 @@
                 app:strokeColor="@color/red"
                 app:strokeWidth="1dp"
                 app:rippleColor="@color/red_10"
+                android:contentDescription="Toggle shuffle"
                 android:layout_marginStart="12dp"
                 app:layout_constraintStart_toEndOf="@id/btnPlayAll"
                 app:layout_constraintTop_toTopOf="parent"
@@ -194,6 +197,7 @@
                 app:strokeColor="@color/red"
                 app:strokeWidth="1dp"
                 app:rippleColor="@color/red_10"
+                android:contentDescription="Toggle repeat"
                 android:layout_marginStart="8dp"
                 app:layout_constraintStart_toEndOf="@id/btnShuffle"
                 app:layout_constraintTop_toTopOf="parent"

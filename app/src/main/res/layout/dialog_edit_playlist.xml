@@ -36,6 +36,7 @@
             app:icon="@drawable/outline_close_24"
             app:iconTint="@color/white"
             app:backgroundTint="@android:color/transparent"
+            android:contentDescription="Close dialog"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />

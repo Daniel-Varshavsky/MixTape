@@ -1,7 +1,30 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.MixTape" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/black</item>
+        <!-- Light status bar (white icons) for dark background -->
+        <item name="android:windowLightStatusBar">false</item>
+        <!-- Navigation bar color -->
+        <item name="android:navigationBarColor">@color/black</item>
+
+        <!-- AlertDialog styling -->
+        <item name="alertDialogTheme">@style/CustomAlertDialog</item>
+    </style>
+
+    <style name="Theme.MixTape" parent="Base.Theme.MixTape" />
+
+    <!-- Custom AlertDialog Theme - Using ThemeOverlay instead -->
+    <style name="CustomAlertDialog" parent="ThemeOverlay.Material3.Dialog">
+        <item name="android:background">@color/black</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="colorPrimary">@color/red</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorSurface">@color/black</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/CustomAlertDialogTitle</item>
+    </style>
+
+    <style name="CustomAlertDialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/white</item>
     </style>
 </resources>

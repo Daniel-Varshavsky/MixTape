@@ -24,6 +24,11 @@ class RemovableTagChipAdapter(
         val tag = tags[position]
         holder.chip.text = tag
         holder.chip.isCloseIconVisible = true
+
+        // Make close icon white and proper size
+        holder.chip.setCloseIconTintResource(R.color.white)
+        holder.chip.closeIconSize = 24f * holder.chip.context.resources.displayMetrics.density
+
         holder.chip.setOnCloseIconClickListener {
             onTagRemove(tag)
         }

@@ -137,8 +137,8 @@ class PlaylistActivity : AppCompatActivity() {
 
         // Sort by options
         val sortByOptions = arrayOf("Entry Order", "Title", "Artist", "Album")
-        val sortByAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sortByOptions)
-        sortByAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val sortByAdapter = ArrayAdapter(this, R.layout.spinner_item_white, sortByOptions)
+        sortByAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_white)
         sortBySpinner.adapter = sortByAdapter
 
         sortBySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -151,8 +151,8 @@ class PlaylistActivity : AppCompatActivity() {
 
         // Order options
         val orderOptions = arrayOf("Ascending", "Descending")
-        val orderAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, orderOptions)
-        orderAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val orderAdapter = ArrayAdapter(this, R.layout.spinner_item_white, orderOptions)
+        orderAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_white)
         orderSpinner.adapter = orderAdapter
 
         orderSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -193,9 +193,9 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun setupFilterInputs() {
-        val titleFilter = findViewById<TextInputEditText>(R.id.filterTitle)
-        val artistFilter = findViewById<TextInputEditText>(R.id.filterArtist)
-        val albumFilter = findViewById<TextInputEditText>(R.id.filterAlbum)
+        val titleFilter = findViewById<EditText>(R.id.filterTitle)
+        val artistFilter = findViewById<EditText>(R.id.filterArtist)
+        val albumFilter = findViewById<EditText>(R.id.filterAlbum)
         val minDurationFilter = findViewById<EditText>(R.id.filterMinDuration)
         val maxDurationFilter = findViewById<EditText>(R.id.filterMaxDuration)
 
@@ -219,9 +219,18 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun setupTagManagement() {
-        val addTagInput = findViewById<TextInputEditText>(R.id.addTagInput)
+        val addTagInput = findViewById<EditText>(R.id.addTagInput)
+        val btnAddTag = findViewById<MaterialButton>(R.id.btnAddTag)
 
-        // Add tag when end icon is clicked (you'd need to handle this in the TextInputLayout)
+        btnAddTag.setOnClickListener {
+            val tagName = addTagInput.text?.toString()?.trim()
+            if (!tagName.isNullOrEmpty()) {
+                addNewTag(tagName)
+                addTagInput.text?.clear()
+            }
+        }
+
+        // Also allow adding tag by pressing enter
         addTagInput.setOnEditorActionListener { _, _, _ ->
             val tagName = addTagInput.text?.toString()?.trim()
             if (!tagName.isNullOrEmpty()) {
@@ -233,9 +242,9 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun updateFilters() {
-        val titleFilter = findViewById<TextInputEditText>(R.id.filterTitle)
-        val artistFilter = findViewById<TextInputEditText>(R.id.filterArtist)
-        val albumFilter = findViewById<TextInputEditText>(R.id.filterAlbum)
+        val titleFilter = findViewById<EditText>(R.id.filterTitle)
+        val artistFilter = findViewById<EditText>(R.id.filterArtist)
+        val albumFilter = findViewById<EditText>(R.id.filterAlbum)
         val minDurationFilter = findViewById<EditText>(R.id.filterMinDuration)
         val maxDurationFilter = findViewById<EditText>(R.id.filterMaxDuration)
 
@@ -254,9 +263,9 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun clearFilters() {
-        findViewById<TextInputEditText>(R.id.filterTitle).text?.clear()
-        findViewById<TextInputEditText>(R.id.filterArtist).text?.clear()
-        findViewById<TextInputEditText>(R.id.filterAlbum).text?.clear()
+        findViewById<EditText>(R.id.filterTitle).text?.clear()
+        findViewById<EditText>(R.id.filterArtist).text?.clear()
+        findViewById<EditText>(R.id.filterAlbum).text?.clear()
         findViewById<EditText>(R.id.filterMinDuration).text?.clear()
         findViewById<EditText>(R.id.filterMaxDuration).text?.clear()
 

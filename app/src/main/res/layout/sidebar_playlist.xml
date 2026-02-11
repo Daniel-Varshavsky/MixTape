@@ -3,7 +3,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="320dp"
     android:layout_height="match_parent"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_gravity="start"
     android:background="@drawable/bg_outline"
     android:fillViewport="true">
@@ -40,6 +39,7 @@
                 app:icon="@drawable/outline_close_24"
                 app:iconTint="@color/white"
                 app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Close menu"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
@@ -159,58 +159,43 @@
             android:layout_marginBottom="16dp">
 
             <!-- Title Filter -->
-            <com.google.android.material.textfield.TextInputLayout
+            <EditText
+                android:id="@+id/filterTitle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:hint="Filter by title"
+                android:textColor="@color/white"
                 android:textColorHint="@color/gray_400"
-                app:boxStrokeColor="@color/red"
-                app:hintTextColor="@color/red"
-                android:layout_marginBottom="12dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/filterTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white" />
-
-            </com.google.android.material.textfield.TextInputLayout>
+                android:background="@drawable/bg_outline"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="12dp" />
 
             <!-- Artist Filter -->
-            <com.google.android.material.textfield.TextInputLayout
+            <EditText
+                android:id="@+id/filterArtist"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:hint="Filter by artist"
+                android:textColor="@color/white"
                 android:textColorHint="@color/gray_400"
-                app:boxStrokeColor="@color/red"
-                app:hintTextColor="@color/red"
-                android:layout_marginBottom="12dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/filterArtist"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white" />
-
-            </com.google.android.material.textfield.TextInputLayout>
+                android:background="@drawable/bg_outline"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="12dp" />
 
             <!-- Album Filter -->
-            <com.google.android.material.textfield.TextInputLayout
+            <EditText
+                android:id="@+id/filterAlbum"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:hint="Filter by album"
+                android:textColor="@color/white"
                 android:textColorHint="@color/gray_400"
-                app:boxStrokeColor="@color/red"
-                app:hintTextColor="@color/red"
-                android:layout_marginBottom="12dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/filterAlbum"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white" />
-
-            </com.google.android.material.textfield.TextInputLayout>
+                android:background="@drawable/bg_outline"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="12dp" />
 
             <!-- Filter by Tags -->
             <com.google.android.material.textview.MaterialTextView
@@ -226,8 +211,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_filter_tag_chip"/>
+                android:nestedScrollingEnabled="false" />
 
             <!-- Duration Filter -->
             <com.google.android.material.textview.MaterialTextView
@@ -354,33 +338,45 @@
             android:visibility="gone">
 
             <!-- Add New Tag -->
-            <com.google.android.material.textfield.TextInputLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Add new tag"
-                android:textColorHint="@color/gray_400"
-                app:boxStrokeColor="@color/red"
-                app:hintTextColor="@color/red"
-                app:endIconMode="custom"
-                app:endIconDrawable="@drawable/outline_add_24"
-                app:endIconTint="@color/red"
                 android:layout_marginBottom="12dp">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <EditText
                     android:id="@+id/addTagInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white" />
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:hint="Add new tag"
+                    android:textColor="@color/white"
+                    android:textColorHint="@color/gray_400"
+                    android:background="@drawable/bg_outline"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="48dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-            </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddTag"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/outline_add_24"
+                    app:iconTint="@color/red"
+                    app:backgroundTint="@android:color/transparent"
+                    android:contentDescription="Add tag"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
             <!-- Tags RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/tagsRecycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_manageable_tag"/>
+                android:nestedScrollingEnabled="false" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
 

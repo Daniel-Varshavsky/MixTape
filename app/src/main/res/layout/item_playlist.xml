@@ -33,15 +33,19 @@
                 android:textSize="22sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/arrowIcon"
+                app:layout_constraintEnd_toStartOf="@id/btnEditPlaylistName"
                 app:layout_constraintTop_toTopOf="parent"/>
 
-            <androidx.appcompat.widget.AppCompatImageView
-                android:id="@+id/arrowIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/rounded_keyboard_arrow_right_24"
-                app:tint="@color/red"
+            <!-- Edit Playlist Name Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEditPlaylistName"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/outline_edit_24"
+                app:iconTint="@color/red"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Edit playlist name"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="@id/playlistName"
                 app:layout_constraintBottom_toBottomOf="@id/playlistName"/>
@@ -115,6 +119,7 @@
                 app:icon="@drawable/outline_share_24"
                 app:iconTint="@color/red"
                 app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Share playlist"
                 app:layout_constraintEnd_toStartOf="@id/btnDelete"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -129,6 +134,7 @@
                 app:icon="@drawable/outline_delete_24"
                 app:iconTint="@color/red"
                 app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Delete playlist"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"

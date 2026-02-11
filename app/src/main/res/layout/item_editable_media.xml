@@ -70,6 +70,7 @@
             app:icon="@drawable/outline_delete_24"
             app:iconTint="@color/red"
             app:backgroundTint="@android:color/transparent"
+            android:contentDescription="Remove from playlist"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -92,7 +93,7 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddTags"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="48dp"
             android:text="+ Add Tags"
             android:textColor="@color/white"
             android:textSize="12sp"

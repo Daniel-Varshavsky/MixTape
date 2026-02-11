@@ -39,44 +39,25 @@
         app:layout_constraintTop_toBottomOf="@id/titleText"
         app:layout_constraintStart_toStartOf="@id/titleText"/>
 
-    <!-- Logout -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layoutLogout"
+    <!-- Logout Button (Fixed) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnLogout"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
+        android:text="Logout"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/black"
+        app:strokeColor="@color/red"
+        app:strokeWidth="1dp"
+        app:icon="@drawable/outline_logout_24"
+        app:iconTint="@color/white"
+        app:iconGravity="start"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="@drawable/bg_outline"
         app:layout_constraintTop_toTopOf="@id/subtitleText"
         app:layout_constraintBottom_toBottomOf="@id/selectText"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="16dp">
-
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/iconLogout"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/outline_logout_24"
-            app:tint="@color/white"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
-
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/textLogout"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Logout"
-            android:textColor="@color/white"
-            android:layout_marginStart="8dp"
-            app:layout_constraintStart_toEndOf="@id/iconLogout"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
+        android:layout_marginEnd="16dp" />
 
     <!-- Instruction -->
     <com.google.android.material.textview.MaterialTextView
