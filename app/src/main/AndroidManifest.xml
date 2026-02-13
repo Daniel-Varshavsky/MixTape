@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,8 +14,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MixTape">
 
+        <!-- Login Activity - Main launcher activity -->
         <activity
-            android:name=".PlaylistSelectionActivity"
+            android:name=".LoginActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -22,6 +25,24 @@
             </intent-filter>
         </activity>
 
+        <!-- Register Activity - Can go back to Login -->
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".LoginActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".LoginActivity" />
+        </activity>
+
+        <!-- Playlist Selection Activity - No parent (can't go back to login) -->
+        <activity
+            android:name=".PlaylistSelectionActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- Playlist Activity - Can go back to Playlist Selection -->
         <activity
             android:name=".PlaylistActivity"
             android:exported="false"

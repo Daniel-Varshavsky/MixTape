@@ -1,5 +1,6 @@
 package com.example.mixtape
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,24 +9,31 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.adapters.ManageableTagAdapter
 import com.example.mixtape.adapters.MediaAdapter
 import com.example.mixtape.adapters.FilterTagChipAdapter
 import com.example.mixtape.model.*
+import com.example.mixtape.repository.FirebaseRepository
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class PlaylistActivity : AppCompatActivity() {
 
+    private lateinit var auth: FirebaseAuth
+    private lateinit var repository: FirebaseRepository
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var mediaAdapter: MediaAdapter
     private lateinit var manageableTagAdapter: ManageableTagAdapter
     private lateinit var filterTagChipAdapter: FilterTagChipAdapter
     private lateinit var playlistTitle: MaterialTextView
     private lateinit var itemCount: MaterialTextView
+    private lateinit var userName: MaterialTextView
 
     // Current playlist data
     private var currentPlaylist: Playlist? = null
@@ -42,9 +50,21 @@ class PlaylistActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playlist)
 
+        // Initialize Firebase Auth and Repository
+        auth = FirebaseAuth.getInstance()
+        repository = FirebaseRepository()
+
+        // Check if user is logged in
+        if (auth.currentUser == null) {
+            redirectToLogin()
+            return
+        }
+
         initViews()
         setupRecyclerViews()
         setupSidebar()
+        setupLogout()
+        updateUserDisplay()
         loadPlaylistData()
         updateDisplay()
     }
@@ -53,6 +73,7 @@ class PlaylistActivity : AppCompatActivity() {
         drawerLayout = findViewById(R.id.drawerLayout)
         playlistTitle = findViewById(R.id.playlistTitle)
         itemCount = findViewById(R.id.itemCount)
+        userName = findViewById(R.id.userName)
 
         // Header buttons
         findViewById<MaterialButton>(R.id.btnMenu).setOnClickListener {
@@ -61,10 +82,6 @@ class PlaylistActivity : AppCompatActivity() {
 
         findViewById<MaterialButton>(R.id.btnEditPlaylist).setOnClickListener {
             openEditPlaylistDialog()
-        }
-
-        findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener {
-            logout()
         }
 
         findViewById<MaterialButton>(R.id.btnPlayAll).setOnClickListener {
@@ -83,6 +100,31 @@ class PlaylistActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btnCloseMenu).setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+    }
+
+    private fun setupLogout() {
+        findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener {
+            logout()
+        }
+    }
+
+    private fun updateUserDisplay() {
+        val user = auth.currentUser
+        val displayName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
+        userName.text = displayName
+    }
+
+    private fun logout() {
+        auth.signOut()
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
+        redirectToLogin()
+    }
+
+    private fun redirectToLogin() {
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun setupRecyclerViews() {
@@ -106,7 +148,6 @@ class PlaylistActivity : AppCompatActivity() {
         val filterTagsRecycler = findViewById<RecyclerView>(R.id.filterTagsChipsRecycler)
         filterTagsRecycler.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
         filterTagChipAdapter = FilterTagChipAdapter(availableTags) { tag, isSelected ->
-            // Handle tag selection for filtering
             updateTagFilters()
         }
         filterTagsRecycler.adapter = filterTagChipAdapter
@@ -129,6 +170,93 @@ class PlaylistActivity : AppCompatActivity() {
 
         // Setup tag management
         setupTagManagement()
+    }
+
+    private fun loadPlaylistData() {
+        val playlistId = intent.getStringExtra("PLAYLIST_ID")
+        val playlistName = intent.getStringExtra("PLAYLIST_NAME") ?: "Unknown Playlist"
+
+        playlistTitle.text = playlistName
+
+        if (playlistId != null) {
+            loadPlaylistFromFirebase(playlistId)
+        } else {
+            // Fallback: create empty playlist view
+            Toast.makeText(this, "No playlist data available", Toast.LENGTH_SHORT).show()
+            updateDisplay()
+        }
+    }
+
+    private fun loadPlaylistFromFirebase(playlistId: String) {
+        lifecycleScope.launch {
+            try {
+                val result = repository.getPlaylistWithMedia(playlistId)
+                result.onSuccess { (playlist, songs, videos) ->
+                    currentPlaylist = playlist
+                    playlistTitle.text = playlist.name
+
+                    // Convert Firebase models to MediaItems
+                    allMediaItems.clear()
+
+                    songs.forEach { song ->
+                        allMediaItems.add(MediaItem.SongItem(song))
+                    }
+
+                    videos.forEach { video ->
+                        allMediaItems.add(MediaItem.VideoItem(video))
+                    }
+
+                    // Load global tags
+                    loadGlobalTags()
+
+                    // Update UI
+                    filteredMediaItems.clear()
+                    filteredMediaItems.addAll(allMediaItems)
+                    applySortAndFilter()
+
+                    if (allMediaItems.isEmpty()) {
+                        Toast.makeText(
+                            this@PlaylistActivity,
+                            "This playlist is empty. Add some content!",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        this@PlaylistActivity,
+                        "Error loading playlist: ${exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@PlaylistActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun loadGlobalTags() {
+        lifecycleScope.launch {
+            try {
+                val result = repository.getGlobalTags()
+                result.onSuccess { globalTags ->
+                    availableTags.clear()
+                    availableTags.addAll(globalTags)
+
+                    // Update adapters
+                    manageableTagAdapter.updateTags(availableTags)
+                    filterTagChipAdapter.notifyDataSetChanged()
+                }.onFailure { exception ->
+                    // Silently handle - tags are not critical for basic functionality
+                    availableTags.clear()
+                }
+            } catch (e: Exception) {
+                // Silently handle
+            }
+        }
     }
 
     private fun setupSortSpinners() {
@@ -230,7 +358,6 @@ class PlaylistActivity : AppCompatActivity() {
             }
         }
 
-        // Also allow adding tag by pressing enter
         addTagInput.setOnEditorActionListener { _, _, _ ->
             val tagName = addTagInput.text?.toString()?.trim()
             if (!tagName.isNullOrEmpty()) {
@@ -241,6 +368,62 @@ class PlaylistActivity : AppCompatActivity() {
         }
     }
 
+    private fun addNewTag(tag: String) {
+        lifecycleScope.launch {
+            try {
+                val result = repository.addGlobalTag(tag)
+                result.onSuccess {
+                    if (!availableTags.contains(tag)) {
+                        availableTags.add(tag)
+                        availableTags.sort()
+                        manageableTagAdapter.addTag(tag)
+                        filterTagChipAdapter.notifyDataSetChanged()
+                    }
+                    Toast.makeText(this@PlaylistActivity, "Tag '$tag' added", Toast.LENGTH_SHORT).show()
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        this@PlaylistActivity,
+                        "Error adding tag: ${exception.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun deleteTag(tag: String) {
+        lifecycleScope.launch {
+            try {
+                val result = repository.removeGlobalTag(tag)
+                result.onSuccess {
+                    // Remove from local lists
+                    availableTags.remove(tag)
+                    manageableTagAdapter.removeTag(tag)
+                    filterTagChipAdapter.notifyDataSetChanged()
+
+                    // Remove from displayed media items (this is just local UI update)
+                    allMediaItems.forEach { item ->
+                        item.tags.removeAll { it == tag }
+                    }
+                    mediaAdapter.updateItems(filteredMediaItems)
+
+                    Toast.makeText(this@PlaylistActivity, "Tag '$tag' deleted", Toast.LENGTH_SHORT).show()
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        this@PlaylistActivity,
+                        "Error deleting tag: ${exception.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Keep all the existing filter, sort, and UI methods but remove the fake data loading
     private fun updateFilters() {
         val titleFilter = findViewById<EditText>(R.id.filterTitle)
         val artistFilter = findViewById<EditText>(R.id.filterArtist)
@@ -314,71 +497,6 @@ class PlaylistActivity : AppCompatActivity() {
         updateItemCount()
     }
 
-    private fun addNewTag(tag: String) {
-        if (!availableTags.contains(tag)) {
-            availableTags.add(tag)
-            availableTags.sort()
-            manageableTagAdapter.addTag(tag)
-            filterTagChipAdapter.notifyDataSetChanged()
-            Toast.makeText(this, "Tag '$tag' added", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(this, "Tag already exists", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun deleteTag(tag: String) {
-        // Remove tag from all media items
-        allMediaItems.forEach { item ->
-            item.tags.removeAll { it == tag }
-        }
-
-        // Remove from available tags
-        availableTags.remove(tag)
-        manageableTagAdapter.removeTag(tag)
-        filterTagChipAdapter.notifyDataSetChanged()
-
-        // Update display to reflect tag removal from media items
-        mediaAdapter.updateItems(filteredMediaItems)
-        Toast.makeText(this, "Tag '$tag' deleted", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun loadPlaylistData() {
-        // Get playlist data from intent or load from database
-        val playlistName = intent.getStringExtra("PLAYLIST_NAME") ?: "My Favorites"
-        currentPlaylist = Playlist(playlistName, 0, 0) // Will be updated
-        playlistTitle.text = playlistName
-
-        // Load fake data for demo
-        loadFakeData()
-    }
-
-    private fun loadFakeData() {
-        // Fake songs
-        allMediaItems.add(MediaItem.SongItem(Song(1, "Bohemian Rhapsody", "Queen", "A Night at the Opera", 355, mutableListOf("classic", "rock"))))
-        allMediaItems.add(MediaItem.SongItem(Song(2, "Thriller", "Michael Jackson", "Thriller", 357, mutableListOf("pop", "iconic"))))
-        allMediaItems.add(MediaItem.SongItem(Song(3, "Hotel California", "Eagles", "Hotel California", 390, mutableListOf("rock", "classic"))))
-        allMediaItems.add(MediaItem.SongItem(Song(4, "Imagine", "John Lennon", "Imagine", 183, mutableListOf("peace", "classic"))))
-
-        // Fake videos
-        allMediaItems.add(MediaItem.VideoItem(Video(5, "Take On Me", "a-ha", "Hunting High and Low", 220, mutableListOf("synth-pop"))))
-        allMediaItems.add(MediaItem.VideoItem(Video(6, "Sweet Child O Mine", "Guns N' Roses", "Appetite for Destruction", 356, mutableListOf("rock", "metal"))))
-
-        // Collect all unique tags from media items
-        availableTags.clear()
-        val allTags = mutableSetOf<String>()
-        allMediaItems.forEach { item ->
-            allTags.addAll(item.tags)
-        }
-        availableTags.addAll(allTags.sorted())
-
-        // Update both adapters
-        manageableTagAdapter.updateTags(availableTags)
-        filterTagChipAdapter.notifyDataSetChanged()
-
-        filteredMediaItems.addAll(allMediaItems)
-        applySortAndFilter()
-    }
-
     private fun updateDisplay() {
         updateItemCount()
     }
@@ -396,6 +514,8 @@ class PlaylistActivity : AppCompatActivity() {
         if (filteredMediaItems.isNotEmpty()) {
             Toast.makeText(this, "Opening player for all ${filteredMediaItems.size} items", Toast.LENGTH_SHORT).show()
             // TODO: Open player with playlist
+        } else {
+            Toast.makeText(this, "No items to play", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -415,11 +535,6 @@ class PlaylistActivity : AppCompatActivity() {
             tagFilter = selectedTags.joinToString(", ")
         )
         applySortAndFilter()
-    }
-
-    private fun logout() {
-        Toast.makeText(this, "Logout functionality will be added later", Toast.LENGTH_SHORT).show()
-        // TODO: Implement logout when authentication is added
     }
 
     private fun openEditPlaylistDialog() {
