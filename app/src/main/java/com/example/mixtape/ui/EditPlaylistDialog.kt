@@ -51,7 +51,7 @@ class EditPlaylistDialog : DialogFragment() {
             playlistId: String,
             playlistName: String,
             mediaItems: List<MediaItem>,
-            availableTags: List<String>,
+            availableTags: List<String>, // This should be current global tags from PlaylistActivity
             onPlaylistUpdated: (() -> Unit)? = null
         ): EditPlaylistDialog {
             val fragment = EditPlaylistDialog()
@@ -61,7 +61,7 @@ class EditPlaylistDialog : DialogFragment() {
             fragment.arguments = args
             fragment.originalMediaItems.addAll(mediaItems)
             fragment.displayedItems.addAll(mediaItems) // Start with original items
-            fragment.availableTags = availableTags
+            fragment.availableTags = availableTags.toList() // Ensure we have a copy of current global tags
             fragment.onPlaylistUpdated = onPlaylistUpdated
             return fragment
         }
@@ -115,7 +115,7 @@ class EditPlaylistDialog : DialogFragment() {
         itemsRecycler.layoutManager = LinearLayoutManager(requireContext())
         editableMediaAdapter = EditableMediaAdapter(
             displayedItems,
-            availableTags,
+            availableTags, // Current global tags from PlaylistActivity
             onItemRemoved = { item -> stageItemRemoval(item) },
             onItemTagsChanged = { item, newTags -> stageTagUpdate(item, newTags) }
         )
@@ -571,5 +571,12 @@ class EditPlaylistDialog : DialogFragment() {
         super.onDismiss(dialog)
         // When dialog is dismissed without saving, changes are lost
         Log.d(TAG, "Dialog dismissed - staged changes discarded")
+    }
+
+    fun updateAvailableTags(newTags: List<String>) {
+        availableTags = newTags.toList()
+        if (::editableMediaAdapter.isInitialized) {
+            editableMediaAdapter.updateAvailableTags(availableTags)
+        }
     }
 }

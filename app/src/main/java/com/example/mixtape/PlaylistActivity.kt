@@ -359,6 +359,8 @@ class PlaylistActivity : AppCompatActivity() {
             if (!tagName.isNullOrEmpty()) {
                 addNewTag(tagName)
                 addTagInput.text?.clear()
+            } else {
+                Toast.makeText(this, "Please enter a tag name", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -373,16 +375,24 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun addNewTag(tag: String) {
+        // Check if tag already exists locally to avoid duplicate requests
+        if (availableTags.contains(tag)) {
+            Toast.makeText(this, "Tag '$tag' already exists", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         lifecycleScope.launch {
             try {
                 val result = repository.addGlobalTag(tag)
                 result.onSuccess {
-                    if (!availableTags.contains(tag)) {
-                        availableTags.add(tag)
-                        availableTags.sort()
-                        manageableTagAdapter.addTag(tag)
-                        filterTagChipAdapter.notifyDataSetChanged()
-                    }
+                    // Add to local list
+                    availableTags.add(tag)
+                    availableTags.sort()
+
+                    // Update all adapters that use global tags
+                    manageableTagAdapter.updateTags(availableTags)
+                    filterTagChipAdapter.notifyDataSetChanged()
+
                     Toast.makeText(this@PlaylistActivity, "Tag '$tag' added", Toast.LENGTH_SHORT).show()
                 }.onFailure { exception ->
                     Toast.makeText(
@@ -485,7 +495,15 @@ class PlaylistActivity : AppCompatActivity() {
 
         // Apply sorting
         items = when (currentSortBy) {
-            SortBy.ENTRY_ORDER -> items.sortedBy { it.id }
+            SortBy.ENTRY_ORDER -> {
+                // Sort by createdAt timestamp instead of string ID
+                items.sortedBy { item ->
+                    when (item) {
+                        is MediaItem.SongItem -> item.song.createdAt?.toDate()?.time ?: 0L
+                        is MediaItem.VideoItem -> item.video.createdAt?.toDate()?.time ?: 0L
+                    }
+                }
+            }
             SortBy.TITLE -> items.sortedBy { it.title }
             SortBy.ARTIST -> items.sortedBy { it.artist }
             SortBy.ALBUM -> items.sortedBy { it.album }
@@ -564,16 +582,27 @@ class PlaylistActivity : AppCompatActivity() {
             try {
                 val result = repository.getGlobalTags()
                 result.onSuccess { globalTags ->
-                    // Convert List<String> to MutableList<String>
-                    availableTags = globalTags.toMutableList()
+                    // Update available tags
+                    availableTags.clear()
+                    availableTags.addAll(globalTags.sorted())
 
-                    // Update adapters with new tags
+                    // Update all adapters with new tags
                     manageableTagAdapter.updateTags(availableTags)
                     filterTagChipAdapter.notifyDataSetChanged()
+
+                    Log.d("PlaylistActivity", "Global tags refreshed: ${availableTags.size} tags")
+                }.onFailure { exception ->
+                    Log.e("PlaylistActivity", "Error refreshing global tags: ${exception.message}")
                 }
             } catch (e: Exception) {
-                // Silently handle - tags are not critical
+                Log.e("PlaylistActivity", "Exception refreshing global tags: ${e.message}")
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh global tags when activity resumes in case they were modified elsewhere
+        refreshGlobalTags()
     }
 }

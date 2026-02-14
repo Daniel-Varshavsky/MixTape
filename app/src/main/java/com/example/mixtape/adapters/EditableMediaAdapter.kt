@@ -13,7 +13,7 @@ import com.google.android.material.button.MaterialButton
 
 class EditableMediaAdapter(
     private var mediaItems: MutableList<MediaItem>,
-    private val availableTags: List<String>,
+    private val availableTags: List<String>, // This should come from global tags
     private val onItemRemoved: (MediaItem) -> Unit,
     private val onItemTagsChanged: (MediaItem, List<String>) -> Unit
 ) : RecyclerView.Adapter<EditableMediaAdapter.ViewHolder>() {
@@ -51,8 +51,8 @@ class EditableMediaAdapter(
 
         // Set up current tags RecyclerView
         holder.currentTagsRecycler.layoutManager = LinearLayoutManager(
-            holder.itemView.context, 
-            LinearLayoutManager.HORIZONTAL, 
+            holder.itemView.context,
+            LinearLayoutManager.HORIZONTAL,
             false
         )
         val currentTagsAdapter = RemovableTagChipAdapter(item.tags) { tagToRemove ->
@@ -62,7 +62,7 @@ class EditableMediaAdapter(
         }
         holder.currentTagsRecycler.adapter = currentTagsAdapter
 
-        // Set up available tags RecyclerView  
+        // Set up available tags RecyclerView - using global tags list
         holder.availableTagsRecycler.layoutManager = androidx.recyclerview.widget.GridLayoutManager(
             holder.itemView.context, 3
         )
@@ -115,5 +115,11 @@ class EditableMediaAdapter(
             mediaItems.removeAt(position)
             notifyItemRemoved(position)
         }
+    }
+
+    // Method to update available tags when they change
+    fun updateAvailableTags(newTags: List<String>) {
+        // Notify all holders to refresh their available tags adapters
+        notifyDataSetChanged()
     }
 }

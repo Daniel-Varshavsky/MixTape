@@ -11,52 +11,68 @@ import com.example.mixtape.model.SharedPlaylist
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 class FirebaseRepository {
-    
+
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
-    
+
     private val currentUserId: String?
         get() = auth.currentUser?.uid
-    
+
     // Storage references
     private fun getUserSongsRef(): StorageReference? {
         return currentUserId?.let { userId ->
             storage.reference.child("users/$userId/songs")
         }
     }
-    
+
     private fun getUserVideosRef(): StorageReference? {
         return currentUserId?.let { userId ->
             storage.reference.child("users/$userId/videos")
         }
     }
-    
+
     // Firestore collections
     private val playlistsCollection = firestore.collection("playlists")
     private val songsCollection = firestore.collection("songs")
     private val videosCollection = firestore.collection("videos")
     private val usersCollection = firestore.collection("users")
-    
+
     // USER PROFILE OPERATIONS
     suspend fun getUserProfile(): Result<UserProfile> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
             val doc = usersCollection.document(userId).get().await()
-            val profile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
-                ?: throw Exception("User profile not found")
-            Result.success(profile)
+
+            if (doc.exists()) {
+                val profile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
+                    ?: throw Exception("User profile not found")
+                Result.success(profile)
+            } else {
+                // Create basic profile if it doesn't exist
+                createUserProfileIfNotExists(userId)
+                val basicProfile = UserProfile(
+                    id = userId,
+                    email = auth.currentUser?.email ?: "",
+                    displayName = auth.currentUser?.displayName ?: auth.currentUser?.email?.substringBefore("@") ?: "User",
+                    globalTags = emptyList(),
+                    createdAt = com.google.firebase.Timestamp.now(),
+                    updatedAt = com.google.firebase.Timestamp.now()
+                )
+                Result.success(basicProfile)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     suspend fun updateUserProfile(profile: UserProfile): Result<Unit> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
@@ -66,74 +82,112 @@ class FirebaseRepository {
             Result.failure(e)
         }
     }
-    
+
     // GLOBAL TAG OPERATIONS
     suspend fun addGlobalTag(tag: String): Result<Unit> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
             val userRef = usersCollection.document(userId)
-            
-            // Add tag to user's global tags if it doesn't exist
-            userRef.update(
-                mapOf(
-                    "globalTags" to FieldValue.arrayUnion(tag),
-                    "updatedAt" to com.google.firebase.Timestamp.now()
-                )
-            ).await()
-            
+
+            // Use set with merge to create document if it doesn't exist
+            val userData = mapOf(
+                "globalTags" to FieldValue.arrayUnion(tag),
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+
+            userRef.set(userData, SetOptions.merge()).await()
+
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error adding global tag: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun removeGlobalTag(tag: String): Result<Unit> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
             val userRef = usersCollection.document(userId)
-            
-            // Remove tag from user's global tags
-            userRef.update(
-                mapOf(
-                    "globalTags" to FieldValue.arrayRemove(tag),
-                    "updatedAt" to com.google.firebase.Timestamp.now()
-                )
-            ).await()
-            
+
+            // Use set with merge to avoid issues with missing documents
+            val userData = mapOf(
+                "globalTags" to FieldValue.arrayRemove(tag),
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+
+            userRef.set(userData, SetOptions.merge()).await()
+
             // TODO: Optionally remove this tag from all user's songs, videos, and playlists
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error removing global tag: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun getGlobalTags(): Result<List<String>> {
         return try {
-            val profile = getUserProfile().getOrThrow()
-            Result.success(profile.globalTags)
+            val userId = currentUserId ?: throw Exception("User not authenticated")
+            val doc = usersCollection.document(userId).get().await()
+
+            if (doc.exists()) {
+                val profile = doc.toObject(UserProfile::class.java)
+                Result.success(profile?.globalTags ?: emptyList())
+            } else {
+                // If user document doesn't exist, create it with empty tags
+                Log.d("FirebaseRepository", "User document doesn't exist, creating with empty tags")
+                createUserProfileIfNotExists(userId)
+                Result.success(emptyList())
+            }
         } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error getting global tags: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
+    // Helper method to create user profile if it doesn't exist
+    private suspend fun createUserProfileIfNotExists(userId: String) {
+        try {
+            val user = auth.currentUser
+            val userData = mapOf(
+                "id" to userId,
+                "email" to (user?.email ?: ""),
+                "displayName" to (user?.displayName ?: user?.email?.substringBefore("@") ?: "User"),
+                "globalTags" to emptyList<String>(),
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+
+            usersCollection.document(userId).set(userData, SetOptions.merge()).await()
+            Log.d("FirebaseRepository", "Created user profile for: $userId")
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error creating user profile: ${e.message}", e)
+        }
+    }
+
     // Automatically add tags to global list when they're used
     private suspend fun ensureTagsInGlobal(tags: List<String>) {
+        if (tags.isEmpty()) return
+
         try {
             val userId = currentUserId ?: return
             val userRef = usersCollection.document(userId)
-            
-            userRef.update(
-                mapOf(
-                    "globalTags" to FieldValue.arrayUnion(*tags.toTypedArray()),
-                    "updatedAt" to com.google.firebase.Timestamp.now()
-                )
-            ).await()
+
+            Log.d("FirebaseRepository", "Adding tags to global: $tags")
+
+            val userData = mapOf(
+                "globalTags" to FieldValue.arrayUnion(*tags.toTypedArray()),
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+
+            userRef.set(userData, SetOptions.merge()).await()
+            Log.d("FirebaseRepository", "Successfully added tags to global")
         } catch (e: Exception) {
-            // Silently fail - this is not critical
+            Log.e("FirebaseRepository", "Error ensuring tags in global: ${e.message}", e)
         }
     }
-    
+
     // SONG OPERATIONS
     suspend fun uploadSong(
         fileUri: Uri,
@@ -181,15 +235,12 @@ class FirebaseRepository {
             // Save to Firestore
             songsCollection.document(songId).set(song).await()
 
-            // Update user statistics
-            updateUserStats()
-
             Result.success(song)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     // VIDEO OPERATIONS
     suspend fun uploadVideo(
         fileUri: Uri,
@@ -243,9 +294,6 @@ class FirebaseRepository {
 
             Log.d("FirebaseRepository", "Video saved to Firestore with ID: $videoId")
 
-            // Update user statistics
-            updateUserStats()
-
             Result.success(video)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error uploading video: ${e.message}", e)
@@ -293,9 +341,6 @@ class FirebaseRepository {
             // Save to Firestore
             playlistsCollection.document(playlistId).set(playlist).await()
 
-            // Update user statistics
-            updateUserStats()
-
             Result.success(playlist)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error creating playlist: ${e.message}", e)
@@ -329,7 +374,7 @@ class FirebaseRepository {
             Result.failure(e)
         }
     }
-    
+
     suspend fun getUserSongs(): Result<List<Song>> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
@@ -337,17 +382,17 @@ class FirebaseRepository {
                 .whereEqualTo("uploadedBy", userId)
                 .get()
                 .await()
-            
+
             val songs = querySnapshot.documents.mapNotNull { doc ->
                 doc.toObject(Song::class.java)?.copy(id = doc.id)
             }
-            
+
             Result.success(songs)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     suspend fun getUserVideos(): Result<List<Video>> {
         return try {
             val userId = currentUserId ?: throw Exception("User not authenticated")
@@ -355,52 +400,24 @@ class FirebaseRepository {
                 .whereEqualTo("uploadedBy", userId)
                 .get()
                 .await()
-            
+
             val videos = querySnapshot.documents.mapNotNull { doc ->
                 doc.toObject(Video::class.java)?.copy(id = doc.id)
             }
-            
+
             Result.success(videos)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
-    // Update user statistics (songs, videos, playlists count, storage used)
-    private suspend fun updateUserStats() {
-        try {
-            val userId = currentUserId ?: return
-            val userRef = usersCollection.document(userId)
-            
-            // Get current counts
-            val songs = getUserSongs().getOrNull() ?: emptyList()
-            val videos = getUserVideos().getOrNull() ?: emptyList()
-            val playlists = getUserPlaylists().getOrNull() ?: emptyList()
-            
-            // Calculate storage used
-            val storageUsed = songs.sumOf { it.fileSize } + videos.sumOf { it.fileSize }
-            
-            userRef.update(
-                mapOf(
-                    "totalSongs" to songs.size,
-                    "totalVideos" to videos.size,
-                    "totalPlaylists" to playlists.size,
-                    "storageUsed" to storageUsed,
-                    "updatedAt" to com.google.firebase.Timestamp.now()
-                )
-            ).await()
-        } catch (e: Exception) {
-            // Silently fail - statistics are not critical
-        }
-    }
-    
+
     // Get complete playlist with all songs and videos
     suspend fun getPlaylistWithMedia(playlistId: String): Result<Triple<Playlist, List<Song>, List<Video>>> {
         return try {
             val playlistDoc = playlistsCollection.document(playlistId).get().await()
             val playlist = playlistDoc.toObject(Playlist::class.java)?.copy(id = playlistDoc.id)
                 ?: throw Exception("Playlist not found")
-            
+
             // Get all songs
             val songs = if (playlist.songIds.isNotEmpty()) {
                 val songDocs = songsCollection.whereIn("id", playlist.songIds).get().await()
@@ -410,7 +427,7 @@ class FirebaseRepository {
             } else {
                 emptyList()
             }
-            
+
             // Get all videos
             val videos = if (playlist.videoIds.isNotEmpty()) {
                 val videoDocs = videosCollection.whereIn("id", playlist.videoIds).get().await()
@@ -420,7 +437,7 @@ class FirebaseRepository {
             } else {
                 emptyList()
             }
-            
+
             Result.success(Triple(playlist, songs, videos))
         } catch (e: Exception) {
             Result.failure(e)
@@ -765,9 +782,6 @@ class FirebaseRepository {
             // Delete the playlist
             playlistRef.delete().await()
 
-            // Update user statistics
-            updateUserStats()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -947,9 +961,6 @@ class FirebaseRepository {
                 // Step 4: Delete metadata from Firestore
                 songsCollection.document(songId).delete().await()
                 Log.d("FirebaseRepository", "Deleted song metadata from Firestore")
-
-                // Step 5: Update user statistics
-                updateUserStats()
             } else {
                 Log.w("FirebaseRepository", "Song not found: $songId")
             }
@@ -998,9 +1009,6 @@ class FirebaseRepository {
                 // Step 5: Delete metadata from Firestore
                 videosCollection.document(videoId).delete().await()
                 Log.d("FirebaseRepository", "Deleted video metadata from Firestore")
-
-                // Step 6: Update user statistics
-                updateUserStats()
             } else {
                 Log.w("FirebaseRepository", "Video not found: $videoId")
             }
