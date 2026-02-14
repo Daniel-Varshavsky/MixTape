@@ -8,9 +8,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 
 class ManageableTagAdapter(
-    private var tags: MutableList<String>,
     private val onDeleteTag: (String) -> Unit
 ) : RecyclerView.Adapter<ManageableTagAdapter.ViewHolder>() {
+
+    private val tags = mutableListOf<String>()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tagName: TextView = view.findViewById(R.id.tagName)

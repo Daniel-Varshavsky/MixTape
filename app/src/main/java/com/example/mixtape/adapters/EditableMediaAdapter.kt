@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
@@ -13,7 +14,7 @@ import com.google.android.material.button.MaterialButton
 
 class EditableMediaAdapter(
     private var mediaItems: MutableList<MediaItem>,
-    private val availableTags: List<String>, // This should come from global tags
+    private var availableTags: List<String>,
     private val onItemRemoved: (MediaItem) -> Unit,
     private val onItemTagsChanged: (MediaItem, List<String>) -> Unit
 ) : RecyclerView.Adapter<EditableMediaAdapter.ViewHolder>() {
@@ -40,7 +41,7 @@ class EditableMediaAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = mediaItems[position]
 
-        // Set icon based on media type
+        // Set icon
         when (item) {
             is MediaItem.SongItem -> holder.icon.setImageResource(R.drawable.sharp_music_note_2_24)
             is MediaItem.VideoItem -> holder.icon.setImageResource(R.drawable.outline_videocam_24)
@@ -49,34 +50,44 @@ class EditableMediaAdapter(
         holder.title.text = item.title
         holder.artist.text = item.artist
 
-        // Set up current tags RecyclerView
-        holder.currentTagsRecycler.layoutManager = LinearLayoutManager(
-            holder.itemView.context,
-            LinearLayoutManager.HORIZONTAL,
-            false
-        )
+        // -----------------------------
+        // Current Tags Recycler
+        // -----------------------------
+        holder.currentTagsRecycler.layoutManager =
+            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+
         val currentTagsAdapter = RemovableTagChipAdapter(item.tags) { tagToRemove ->
             item.tags.remove(tagToRemove)
             onItemTagsChanged(item, item.tags)
             notifyItemChanged(position)
         }
+
         holder.currentTagsRecycler.adapter = currentTagsAdapter
 
-        // Set up available tags RecyclerView - using global tags list
-        holder.availableTagsRecycler.layoutManager = androidx.recyclerview.widget.GridLayoutManager(
-            holder.itemView.context, 3
-        )
-        val availableTagsAdapter = FilterTagChipAdapter(availableTags) { tag, isSelected ->
-            // Handle tag selection (will be applied when Apply button is pressed)
-        }
-        holder.availableTagsRecycler.adapter = availableTagsAdapter
+        // -----------------------------
+        // Available Tags Recycler
+        // -----------------------------
+        holder.availableTagsRecycler.layoutManager =
+            GridLayoutManager(holder.itemView.context, 3)
 
-        // Handle remove button
+        val availableTagsAdapter = FilterTagChipAdapter { tag, isSelected ->
+            // Selection handled internally.
+            // We only read selected tags when Apply is pressed.
+        }
+
+        holder.availableTagsRecycler.adapter = availableTagsAdapter
+        availableTagsAdapter.updateTags(availableTags)
+
+        // -----------------------------
+        // Remove Item
+        // -----------------------------
         holder.btnRemove.setOnClickListener {
             onItemRemoved(item)
         }
 
-        // Handle add tags section toggle
+        // -----------------------------
+        // Toggle Add Tags Section
+        // -----------------------------
         holder.btnAddTags.setOnClickListener {
             holder.btnAddTags.visibility = View.GONE
             holder.addTagsSection.visibility = View.VISIBLE
@@ -90,19 +101,23 @@ class EditableMediaAdapter(
 
         holder.btnApplyTags.setOnClickListener {
             val selectedTags = availableTagsAdapter.getSelectedTags()
+
             selectedTags.forEach { tag ->
                 if (!item.tags.contains(tag)) {
                     item.tags.add(tag)
                 }
             }
+
             onItemTagsChanged(item, item.tags)
+
             holder.btnAddTags.visibility = View.VISIBLE
             holder.addTagsSection.visibility = View.GONE
             availableTagsAdapter.clearSelection()
+
             notifyItemChanged(position)
         }
 
-        // Initially hide add tags section
+        // Default state
         holder.btnAddTags.visibility = View.VISIBLE
         holder.addTagsSection.visibility = View.GONE
     }
@@ -117,9 +132,8 @@ class EditableMediaAdapter(
         }
     }
 
-    // Method to update available tags when they change
     fun updateAvailableTags(newTags: List<String>) {
-        // Notify all holders to refresh their available tags adapters
+        availableTags = newTags
         notifyDataSetChanged()
     }
 }
