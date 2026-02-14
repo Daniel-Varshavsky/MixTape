@@ -28,7 +28,7 @@ class FilterTagChipAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val tag = tags[position]
 
-        holder.chip.setOnCheckedChangeListener(null) // IMPORTANT
+        holder.chip.setOnCheckedChangeListener(null) // IMPORTANT: Clear listener before setting state
         holder.chip.text = tag
 
         val isSelected = selectedTags.contains(tag)

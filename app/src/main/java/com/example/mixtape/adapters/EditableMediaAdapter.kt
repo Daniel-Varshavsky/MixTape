@@ -5,7 +5,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
@@ -30,6 +29,11 @@ class EditableMediaAdapter(
         val availableTagsRecycler: RecyclerView = view.findViewById(R.id.availableTagsRecycler)
         val btnCancelAddTags: MaterialButton = view.findViewById(R.id.btnCancelAddTags)
         val btnApplyTags: MaterialButton = view.findViewById(R.id.btnApplyTags)
+
+        // Track original state for cancel functionality and staging decisions
+        var originalTags: List<String> = emptyList()
+        var currentTagsAdapter: RemovableTagChipAdapter? = null
+        var availableTagsAdapter: ClickableTagChipAdapter? = null
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -50,33 +54,11 @@ class EditableMediaAdapter(
         holder.title.text = item.title
         holder.artist.text = item.artist
 
-        // -----------------------------
-        // Current Tags Recycler
-        // -----------------------------
-        holder.currentTagsRecycler.layoutManager =
-            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+        // FIXED: Initialize original tags immediately when binding, not just when "Add Tags" is pressed
+        holder.originalTags = item.tags.toList()
 
-        val currentTagsAdapter = RemovableTagChipAdapter(item.tags) { tagToRemove ->
-            item.tags.remove(tagToRemove)
-            onItemTagsChanged(item, item.tags)
-            notifyItemChanged(position)
-        }
-
-        holder.currentTagsRecycler.adapter = currentTagsAdapter
-
-        // -----------------------------
-        // Available Tags Recycler
-        // -----------------------------
-        holder.availableTagsRecycler.layoutManager =
-            GridLayoutManager(holder.itemView.context, 3)
-
-        val availableTagsAdapter = FilterTagChipAdapter { tag, isSelected ->
-            // Selection handled internally.
-            // We only read selected tags when Apply is pressed.
-        }
-
-        holder.availableTagsRecycler.adapter = availableTagsAdapter
-        availableTagsAdapter.updateTags(availableTags)
+        setupCurrentTagsRecycler(holder, item, position)
+        setupAvailableTagsRecycler(holder, item)
 
         // -----------------------------
         // Remove Item
@@ -89,37 +71,93 @@ class EditableMediaAdapter(
         // Toggle Add Tags Section
         // -----------------------------
         holder.btnAddTags.setOnClickListener {
+            // Note: originalTags is already set above during binding
+
             holder.btnAddTags.visibility = View.GONE
             holder.addTagsSection.visibility = View.VISIBLE
+
+            // Refresh available tags to exclude current tags
+            updateAvailableTagsForItem(holder, item)
         }
 
         holder.btnCancelAddTags.setOnClickListener {
+            // Revert to original tags
+            item.tags.clear()
+            item.tags.addAll(holder.originalTags)
+
             holder.btnAddTags.visibility = View.VISIBLE
             holder.addTagsSection.visibility = View.GONE
-            availableTagsAdapter.clearSelection()
+
+            // Refresh displays
+            holder.currentTagsAdapter?.notifyDataSetChanged()
+            updateAvailableTagsForItem(holder, item)
         }
 
         holder.btnApplyTags.setOnClickListener {
-            val selectedTags = availableTagsAdapter.getSelectedTags()
-
-            selectedTags.forEach { tag ->
-                if (!item.tags.contains(tag)) {
-                    item.tags.add(tag)
-                }
-            }
-
-            onItemTagsChanged(item, item.tags)
+            // Stage the changes by calling the callback
+            onItemTagsChanged(item, item.tags.toList())
 
             holder.btnAddTags.visibility = View.VISIBLE
             holder.addTagsSection.visibility = View.GONE
-            availableTagsAdapter.clearSelection()
-
-            notifyItemChanged(position)
         }
 
         // Default state
         holder.btnAddTags.visibility = View.VISIBLE
         holder.addTagsSection.visibility = View.GONE
+    }
+
+    private fun setupCurrentTagsRecycler(holder: ViewHolder, item: MediaItem, position: Int) {
+        holder.currentTagsRecycler.layoutManager =
+            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+
+        holder.currentTagsAdapter = RemovableTagChipAdapter(item.tags) { tagToRemove ->
+            // Check if this tag was originally on the item
+            val wasOriginalTag = holder.originalTags.contains(tagToRemove)
+
+            // Remove tag from current tags (immediate UI feedback)
+            item.tags.remove(tagToRemove)
+
+            if (wasOriginalTag) {
+                // This was an original tag being removed - stage the change immediately
+                onItemTagsChanged(item, item.tags.toList())
+            }
+            // If it wasn't an original tag, it's just a UI revert (no staging needed)
+
+            // Refresh current tags display
+            holder.currentTagsAdapter?.notifyDataSetChanged()
+
+            // Refresh available tags to include the removed tag
+            updateAvailableTagsForItem(holder, item)
+        }
+
+        holder.currentTagsRecycler.adapter = holder.currentTagsAdapter
+    }
+
+    private fun setupAvailableTagsRecycler(holder: ViewHolder, item: MediaItem) {
+        holder.availableTagsRecycler.layoutManager =
+            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+
+        holder.availableTagsAdapter = ClickableTagChipAdapter { selectedTag ->
+            // Add tag to current tags (immediate UI feedback)
+            if (!item.tags.contains(selectedTag)) {
+                item.tags.add(selectedTag)
+
+                // Refresh current tags display
+                holder.currentTagsAdapter?.notifyDataSetChanged()
+
+                // Refresh available tags to exclude the added tag
+                updateAvailableTagsForItem(holder, item)
+            }
+        }
+
+        holder.availableTagsRecycler.adapter = holder.availableTagsAdapter
+        updateAvailableTagsForItem(holder, item)
+    }
+
+    private fun updateAvailableTagsForItem(holder: ViewHolder, item: MediaItem) {
+        // Show only tags that aren't currently assigned to this item
+        val availableForThisItem = availableTags.filter { !item.tags.contains(it) }
+        holder.availableTagsAdapter?.updateTags(availableForThisItem)
     }
 
     override fun getItemCount() = mediaItems.size

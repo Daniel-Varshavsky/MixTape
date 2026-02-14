@@ -111,19 +111,30 @@ class EditPlaylistDialog : DialogFragment() {
 
         dialogTitle.text = "Edit: $playlistName"
 
-        // Setup RecyclerView
+        // Setup RecyclerView with the copied media items
         itemsRecycler.layoutManager = LinearLayoutManager(requireContext())
         editableMediaAdapter = EditableMediaAdapter(
-            displayedItems,
-            availableTags, // Current global tags from PlaylistActivity
+            displayedItems, // These are copies, so modifications don't affect original data
+            availableTags,
             onItemRemoved = { item -> stageItemRemoval(item) },
             onItemTagsChanged = { item, newTags -> stageTagUpdate(item, newTags) }
         )
         itemsRecycler.adapter = editableMediaAdapter
 
-        btnClose.setOnClickListener { dismiss() }
+        // Close button - dismiss without saving
+        btnClose.setOnClickListener {
+            Log.d(TAG, "Close button pressed - dismissing dialog")
+            dismiss()
+        }
+
         btnAddContent.setOnClickListener { openFilePicker() }
-        btnCancel.setOnClickListener { dismiss() }
+
+        // Cancel button - dismiss without saving
+        btnCancel.setOnClickListener {
+            Log.d(TAG, "Cancel button pressed - dismissing dialog")
+            dismiss()
+        }
+
         btnSaveChanges.setOnClickListener { saveAllChanges() }
 
         updateSaveButton()
@@ -564,12 +575,14 @@ class EditPlaylistDialog : DialogFragment() {
     override fun onCancel(dialog: DialogInterface) {
         super.onCancel(dialog)
         // When dialog is cancelled (back button, outside tap), changes are lost
+        // Since we're working with copies, no changes are applied to the original data
         Log.d(TAG, "Dialog cancelled - staged changes discarded")
     }
 
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
         // When dialog is dismissed without saving, changes are lost
+        // Since we're working with copies, no changes are applied to the original data
         Log.d(TAG, "Dialog dismissed - staged changes discarded")
     }
 

@@ -119,9 +119,22 @@ class PlaylistActivity : AppCompatActivity() {
         }
         tagsRecycler.adapter = manageableTagAdapter
 
-        // Filter tag chips RecyclerView - using GridLayoutManager from Version 1
+        // Filter tag chips RecyclerView - FIXED: Use FlexboxLayoutManager for proper wrapping
         val filterRecycler = findViewById<RecyclerView>(R.id.filterTagsChipsRecycler)
-        filterRecycler.layoutManager = GridLayoutManager(this, 3)
+
+        // Option 1: FlexboxLayoutManager (recommended - requires dependency)
+        // filterRecycler.layoutManager = FlexboxLayoutManager(this).apply {
+        //     flexWrap = FlexWrap.WRAP
+        //     flexDirection = FlexDirection.ROW
+        //     alignItems = AlignItems.FLEX_START
+        // }
+
+        // Option 2: LinearLayoutManager with horizontal orientation (fallback)
+        filterRecycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+
+        // Option 3: StaggeredGridLayoutManager (alternative)
+        // filterRecycler.layoutManager = StaggeredGridLayoutManager(3, StaggeredGridLayoutManager.HORIZONTAL)
+
         filterTagChipAdapter = FilterTagChipAdapter { _, _ ->
             updateTagFilters()
         }
@@ -503,22 +516,82 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun deleteTag(tag: String) {
+        // Show confirmation dialog before proceeding with deletion
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Delete Tag")
+            .setMessage("Are you sure you want to delete the tag '$tag'?\n\nThis will permanently remove it from your global tags and from all songs and videos that currently have this tag. This action cannot be undone.")
+            .setPositiveButton("Delete") { dialog, _ ->
+                // User confirmed - proceed with deletion
+                performTagDeletion(tag)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun performTagDeletion(tag: String) {
         lifecycleScope.launch {
             try {
+                // Step 1: Remove from global tags
                 repository.removeGlobalTag(tag)
                     .onSuccess {
-                        // Remove from local lists
+                        // Step 2: Remove from local lists
                         availableTags.remove(tag)
                         manageableTagAdapter.removeTag(tag)
                         filterTagChipAdapter.updateTags(availableTags)
 
-                        // Remove from displayed media items (this is just local UI update)
+                        // Step 3: Update all affected media items in the database
+                        val mediaItemsToUpdate = mutableListOf<Pair<String, Boolean>>()
+
                         allMediaItems.forEach { item ->
-                            item.tags.removeAll { it == tag }
+                            if (item.tags.contains(tag)) {
+                                // Remove tag from local item
+                                item.tags.remove(tag)
+                                // Track for database update (itemId, isVideo)
+                                mediaItemsToUpdate.add(Pair(item.id, item is MediaItem.VideoItem))
+                            }
                         }
+
+                        // Step 4: Update each affected media item in the database
+                        var updateSuccessCount = 0
+                        var updateFailureCount = 0
+
+                        for ((itemId, isVideo) in mediaItemsToUpdate) {
+                            val newTags = allMediaItems.find { it.id == itemId }?.tags ?: continue
+
+                            val updateResult = if (isVideo) {
+                                repository.updateVideoTags(itemId, newTags)
+                            } else {
+                                repository.updateSongTags(itemId, newTags)
+                            }
+
+                            if (updateResult.isSuccess) {
+                                updateSuccessCount++
+                            } else {
+                                updateFailureCount++
+                                Log.e("PlaylistActivity", "Failed to update tags for $itemId: ${updateResult.exceptionOrNull()?.message}")
+                            }
+                        }
+
+                        // Step 5: Update UI
                         mediaAdapter.updateItems(filteredMediaItems)
 
-                        Toast.makeText(this@PlaylistActivity, "Tag '$tag' deleted", Toast.LENGTH_SHORT).show()
+                        // Step 6: Show result to user
+                        val message = if (updateFailureCount == 0) {
+                            if (mediaItemsToUpdate.isNotEmpty()) {
+                                "Tag '$tag' deleted and removed from ${mediaItemsToUpdate.size} items"
+                            } else {
+                                "Tag '$tag' deleted"
+                            }
+                        } else {
+                            "Tag '$tag' deleted, but failed to update $updateFailureCount items"
+                        }
+
+                        Toast.makeText(this@PlaylistActivity, message, Toast.LENGTH_SHORT).show()
+
+                        Log.d("PlaylistActivity", "Tag deletion complete: $updateSuccessCount successful, $updateFailureCount failed")
                     }
                     .onFailure { exception ->
                         Toast.makeText(
@@ -526,9 +599,11 @@ class PlaylistActivity : AppCompatActivity() {
                             "Error deleting tag: ${exception.message}",
                             Toast.LENGTH_SHORT
                         ).show()
+                        Log.e("PlaylistActivity", "Error deleting global tag: ${exception.message}", exception)
                     }
             } catch (e: Exception) {
                 Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("PlaylistActivity", "Exception in performTagDeletion: ${e.message}", e)
             }
         }
     }
@@ -562,10 +637,30 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun openEditPlaylistDialog() {
+        // Create deep copies of media items to prevent shared reference issues
+        val mediaItemCopies = allMediaItems.map { originalItem ->
+            when (originalItem) {
+                is MediaItem.SongItem -> {
+                    MediaItem.SongItem(
+                        originalItem.song.copy(
+                            tags = originalItem.song.tags.toMutableList() // Deep copy tags
+                        )
+                    )
+                }
+                is MediaItem.VideoItem -> {
+                    MediaItem.VideoItem(
+                        originalItem.video.copy(
+                            tags = originalItem.video.tags.toMutableList() // Deep copy tags
+                        )
+                    )
+                }
+            }
+        }
+
         val dialog = EditPlaylistDialog.newInstance(
             playlistId = currentPlaylist?.id ?: "",
             playlistName = currentPlaylist?.name ?: "Playlist",
-            mediaItems = allMediaItems,
+            mediaItems = mediaItemCopies, // ✅ Use copies instead of originals
             availableTags = availableTags,
             onPlaylistUpdated = {
                 // Refresh the playlist data when dialog closes
