@@ -17,7 +17,11 @@ sealed class MediaItem {
         override val album: String get() = song.album
         override val durationSeconds: Int get() = song.durationSeconds
         override val tags: MutableList<String> get() = song.tags
-        override fun getDurationFormatted(): String = song.getDurationFormatted()
+
+        // Use the stored durationFormatted property or the helper method
+        override fun getDurationFormatted(): String = song.durationFormatted.ifEmpty {
+            song.formatDuration()
+        }
     }
 
     data class VideoItem(val video: Video) : MediaItem() {
@@ -27,6 +31,10 @@ sealed class MediaItem {
         override val album: String get() = video.album
         override val durationSeconds: Int get() = video.durationSeconds
         override val tags: MutableList<String> get() = video.tags
-        override fun getDurationFormatted(): String = video.getDurationFormatted()
+
+        // Use the stored durationFormatted property or the helper method
+        override fun getDurationFormatted(): String = video.durationFormatted.ifEmpty {
+            video.formatDuration()
+        }
     }
 }

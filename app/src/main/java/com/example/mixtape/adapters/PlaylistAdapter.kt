@@ -3,18 +3,29 @@ package com.example.mixtape.adapters
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.example.mixtape.model.Playlist
+import com.example.mixtape.utilities.FirebaseRepository
+import com.example.mixtape.ui.RenamePlaylistDialog
+import com.example.mixtape.ui.SharePlaylistDialog
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.launch
 
 class PlaylistAdapter(
-    private val playlists: List<Playlist>,
-    private val onPlaylistClick: (Playlist) -> Unit = {}
+    private val playlists: MutableList<Playlist>,
+    private val onPlaylistClick: (Playlist) -> Unit = {},
+    private val lifecycleScope: LifecycleCoroutineScope? = null,
+    private val fragmentManager: androidx.fragment.app.FragmentManager? = null,
+    private val onPlaylistDeleted: (String) -> Unit = {},
+    private val onPlaylistRenamed: (String, String) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
+
+    private val repository = FirebaseRepository()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.playlistName)
@@ -33,85 +44,131 @@ class PlaylistAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val p = playlists[position]
+        val playlist = playlists[position]
 
-        holder.name.text = p.name
-        holder.info.text = "${p.songs + p.videos} items"
-        holder.songs.text = "${p.songs} songs"
-        holder.videos.text = "${p.videos} videos"
+        holder.name.text = playlist.name
+        holder.info.text = "${playlist.totalItems} items"
+        holder.songs.text = "${playlist.songs} songs"
+        holder.videos.text = "${playlist.videos} videos"
 
         // Handle playlist click (open playlist)
         holder.itemView.setOnClickListener {
-            onPlaylistClick(p)
+            onPlaylistClick(playlist)
         }
 
-        // Handle edit playlist name
+        // Handle edit playlist name - only if fragmentManager is available
         holder.btnEditPlaylistName.setOnClickListener {
-            showRenameDialog(holder.itemView.context, p.name) { newName ->
-                // TODO: Update playlist name in database/storage
-                holder.name.text = newName
+            if (fragmentManager != null) {
+                val dialog = RenamePlaylistDialog.newInstance(
+                    playlist.id,
+                    playlist.name
+                ) { playlistId, newName ->
+                    // Update local data
+                    val index = playlists.indexOfFirst { it.id == playlistId }
+                    if (index != -1) {
+                        playlists[index] = playlists[index].copy(name = newName)
+                        notifyItemChanged(index)
+                    }
+                    onPlaylistRenamed(playlistId, newName)
+                }
+                dialog.show(fragmentManager, "RenamePlaylist")
+            } else {
+                Toast.makeText(
+                    holder.itemView.context,
+                    "Rename functionality will be implemented later",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
+        // Handle share - only if fragmentManager is available
         holder.btnShare.setOnClickListener {
-            // TODO: Implement share functionality
-        }
-
-        holder.btnDelete.setOnClickListener {
-            AlertDialog.Builder(holder.itemView.context)
-                .setMessage("Are you sure you want to delete this playlist?")
-                .setPositiveButton("Yes") { dialog, _ ->
-                    // TODO: Implement delete functionality
-                    dialog.dismiss()
-                }
-                .setNegativeButton("No") { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .show()
-        }
-    }
-
-    private fun showRenameDialog(context: android.content.Context, currentName: String, onRenamed: (String) -> Unit) {
-        // Using custom dialog for better control and consistency
-        showCustomRenameDialog(context, currentName, onRenamed)
-    }
-
-    private fun showCustomRenameDialog(context: android.content.Context, currentName: String, onRenamed: (String) -> Unit) {
-        val dialog = android.app.Dialog(context)
-        dialog.setContentView(R.layout.dialog_rename_playlist)
-
-        dialog.window?.setLayout(
-            (context.resources.displayMetrics.widthPixels * 0.9).toInt(),
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val input = dialog.findViewById<EditText>(R.id.playlistNameInput)
-        val btnCancel = dialog.findViewById<MaterialButton>(R.id.btnCancel)
-        val btnSave = dialog.findViewById<MaterialButton>(R.id.btnSave)
-
-        input.setText(currentName)
-        input.setSelectAllOnFocus(true)
-
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        btnSave.setOnClickListener {
-            val newName = input.text.toString().trim()
-            if (newName.isNotEmpty() && newName != currentName) {
-                onRenamed(newName)
+            if (fragmentManager != null) {
+                val dialog = SharePlaylistDialog.newInstance(playlist.id, playlist.name)
+                dialog.show(fragmentManager, "SharePlaylist")
+            } else {
+                Toast.makeText(
+                    holder.itemView.context,
+                    "Share functionality will be implemented later",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-            dialog.dismiss()
         }
 
-        dialog.show()
+        // Handle delete
+        holder.btnDelete.setOnClickListener {
+            showDeleteConfirmation(holder.itemView.context, playlist, position)
+        }
+    }
 
-        // Focus the input and show keyboard
-        input.requestFocus()
-        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    private fun showDeleteConfirmation(context: android.content.Context, playlist: Playlist, position: Int) {
+        AlertDialog.Builder(context)
+            .setTitle("Delete Playlist")
+            .setMessage("Are you sure you want to delete '${playlist.name}'? This action cannot be undone.")
+            .setPositiveButton("Delete") { dialog, _ ->
+                if (lifecycleScope != null) {
+                    deletePlaylist(playlist, position, context)
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Delete functionality will be implemented later",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun deletePlaylist(playlist: Playlist, position: Int, context: android.content.Context) {
+        lifecycleScope?.launch {
+            try {
+                val result = repository.deletePlaylist(playlist.id)
+
+                result.onSuccess {
+                    // Remove from local list
+                    playlists.removeAt(position)
+                    notifyItemRemoved(position)
+                    notifyItemRangeChanged(position, playlists.size)
+
+                    Toast.makeText(
+                        context,
+                        "Playlist '${playlist.name}' deleted",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    // Notify parent activity
+                    onPlaylistDeleted(playlist.id)
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        context,
+                        "Error deleting playlist: ${exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     override fun getItemCount() = playlists.size
+
+    fun updatePlaylists(newPlaylists: List<Playlist>) {
+        playlists.clear()
+        playlists.addAll(newPlaylists)
+        notifyDataSetChanged()
+    }
+
+    fun addPlaylist(playlist: Playlist) {
+        playlists.add(0, playlist) // Add at the beginning
+        notifyItemInserted(0)
+    }
 }

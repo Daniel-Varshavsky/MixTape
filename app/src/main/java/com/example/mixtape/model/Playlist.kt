@@ -1,33 +1,53 @@
 package com.example.mixtape.model
 
 data class Playlist(
-    val id: String = "", // Firestore document ID
-    val name: String,
+    val id: String = "",
+    val name: String = "",
     val description: String = "",
-    val ownerId: String = "", // User ID who created the playlist
-    val songIds: List<String> = emptyList(), // References to Song documents
-    val videoIds: List<String> = emptyList(), // References to Video documents
+    val ownerId: String = "",
+    val songIds: List<String> = emptyList(),
+    val videoIds: List<String> = emptyList(),
+    val playlistTags: List<String> = emptyList(),
+    val sharedWithUsers: List<String> = emptyList(),
+    val shareCode: String = "",
+    val allowCopying: Boolean = true,
+    val ownerVisible: Boolean = true,
 
-    // Playlist-specific tags (for categorizing the playlist itself)
-    val playlistTags: List<String> = emptyList(), // e.g., "workout", "party", "chill"
-
-    // Sharing system - private by default with selective sharing
-    val sharedWithUsers: List<String> = emptyList(), // User IDs who have access to this playlist
-    val shareCode: String = "", // Optional: unique code for easy sharing
-    val allowCopying: Boolean = true, // Can shared users make their own copy?
-    val isOwnerVisible: Boolean = true, // Should recipients see who shared it?
+    // These are stored as actual fields in your Firestore (not computed)
+    val songs: Int = 0,
+    val videos: Int = 0,
+    val totalItems: Int = 0,
+    val shareCount: Int = 0,
+    val shared: Boolean = false,
 
     val createdAt: com.google.firebase.Timestamp? = null,
     val updatedAt: com.google.firebase.Timestamp? = null,
-    val lastSharedAt: com.google.firebase.Timestamp? = null // Track when it was last shared
+    val lastSharedAt: com.google.firebase.Timestamp? = null
 ) {
-    // Computed properties for UI compatibility
-    val songs: Int get() = songIds.size
-    val videos: Int get() = videoIds.size
-    val totalItems: Int get() = songs + videos
+    // No-argument constructor for Firestore
+    constructor() : this(
+        id = "",
+        name = "",
+        description = "",
+        ownerId = "",
+        songIds = emptyList(),
+        videoIds = emptyList(),
+        playlistTags = emptyList(),
+        sharedWithUsers = emptyList(),
+        shareCode = "",
+        allowCopying = true,
+        ownerVisible = true,
+        songs = 0,
+        videos = 0,
+        totalItems = 0,
+        shareCount = 0,
+        shared = false,
+        createdAt = null,
+        updatedAt = null,
+        lastSharedAt = null
+    )
 
-    // Helper methods for sharing
+    // Helper methods - use simple names that don't conflict
     fun isSharedWith(userId: String): Boolean = sharedWithUsers.contains(userId)
-    fun isShared(): Boolean = sharedWithUsers.isNotEmpty() || shareCode.isNotEmpty()
-    fun getShareCount(): Int = sharedWithUsers.size
+    fun hasShares(): Boolean = shared
 }

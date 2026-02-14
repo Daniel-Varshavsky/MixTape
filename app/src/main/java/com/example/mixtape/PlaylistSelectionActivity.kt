@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.adapters.PlaylistAdapter
 import com.example.mixtape.model.Playlist
-import com.example.mixtape.repository.FirebaseRepository
+import com.example.mixtape.utilities.FirebaseRepository
 import com.example.mixtape.ui.AddPlaylistDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
@@ -50,7 +50,7 @@ class PlaylistSelectionActivity : AppCompatActivity() {
 
         val addButton = findViewById<Button>(R.id.btnAddPlaylist)
         addButton.setOnClickListener {
-            AddPlaylistDialog().show(supportFragmentManager, "AddPlaylist")
+            showAddPlaylistDialog()
         }
     }
 
@@ -74,14 +74,33 @@ class PlaylistSelectionActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
-        playlistAdapter = PlaylistAdapter(playlists) { playlist ->
-            // Launch PlaylistActivity when a playlist is clicked
-            val intent = Intent(this, PlaylistActivity::class.java)
-            intent.putExtra("PLAYLIST_ID", playlist.id)
-            intent.putExtra("PLAYLIST_NAME", playlist.name)
-            startActivity(intent)
-        }
+        playlistAdapter = PlaylistAdapter(
+            playlists = playlists,
+            lifecycleScope = lifecycleScope,
+            fragmentManager = supportFragmentManager,
+            onPlaylistClick = { playlist ->
+                // Launch PlaylistActivity when a playlist is clicked
+                val intent = Intent(this, PlaylistActivity::class.java)
+                intent.putExtra("PLAYLIST_ID", playlist.id)
+                intent.putExtra("PLAYLIST_NAME", playlist.name)
+                startActivity(intent)
+            },
+            onPlaylistDeleted = { playlistId ->
+                // Playlist already removed from adapter, no additional action needed
+            },
+            onPlaylistRenamed = { playlistId, newName ->
+                // Playlist already updated in adapter, no additional action needed
+            }
+        )
         recyclerView.adapter = playlistAdapter
+    }
+
+    private fun showAddPlaylistDialog() {
+        val dialog = AddPlaylistDialog.newInstance { playlistId ->
+            // Refresh the playlist list when a new playlist is created
+            loadPlaylists()
+        }
+        dialog.show(supportFragmentManager, "AddPlaylist")
     }
 
     private fun loadPlaylists() {
@@ -90,7 +109,7 @@ class PlaylistSelectionActivity : AppCompatActivity() {
                 val result = repository.getUserPlaylists()
                 result.onSuccess { userPlaylists ->
                     playlists.clear()
-                    playlists.addAll(userPlaylists)
+                    playlists.addAll(userPlaylists.sortedByDescending { it.createdAt })
                     playlistAdapter.notifyDataSetChanged()
 
                     // Show message if no playlists

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -16,7 +17,7 @@ import com.example.mixtape.adapters.ManageableTagAdapter
 import com.example.mixtape.adapters.MediaAdapter
 import com.example.mixtape.adapters.FilterTagChipAdapter
 import com.example.mixtape.model.*
-import com.example.mixtape.repository.FirebaseRepository
+import com.example.mixtape.utilities.FirebaseRepository
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
@@ -221,6 +222,9 @@ class PlaylistActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                     }
+
+                    Log.d("PlaylistActivity", "Playlist refreshed: ${allMediaItems.size} items loaded")
+
                 }.onFailure { exception ->
                     Toast.makeText(
                         this@PlaylistActivity,
@@ -244,7 +248,7 @@ class PlaylistActivity : AppCompatActivity() {
                 val result = repository.getGlobalTags()
                 result.onSuccess { globalTags ->
                     availableTags.clear()
-                    availableTags.addAll(globalTags)
+                    availableTags.addAll(globalTags) // This is safer than reassigning
 
                     // Update adapters
                     manageableTagAdapter.updateTags(availableTags)
@@ -539,10 +543,37 @@ class PlaylistActivity : AppCompatActivity() {
 
     private fun openEditPlaylistDialog() {
         val dialog = EditPlaylistDialog.newInstance(
-            currentPlaylist?.name ?: "Playlist",
-            allMediaItems,
-            availableTags
+            playlistId = currentPlaylist?.id ?: "",
+            playlistName = currentPlaylist?.name ?: "Playlist",
+            mediaItems = allMediaItems,
+            availableTags = availableTags,
+            onPlaylistUpdated = {
+                // Refresh the playlist data when dialog closes
+                val playlistId = currentPlaylist?.id
+                if (playlistId != null) {
+                    Log.d("PlaylistActivity", "Refreshing playlist data after dialog closed")
+                    loadPlaylistFromFirebase(playlistId)
+                }
+            }
         )
         dialog.show(supportFragmentManager, "EditPlaylist")
+    }
+
+    private fun refreshGlobalTags() {
+        lifecycleScope.launch {
+            try {
+                val result = repository.getGlobalTags()
+                result.onSuccess { globalTags ->
+                    // Convert List<String> to MutableList<String>
+                    availableTags = globalTags.toMutableList()
+
+                    // Update adapters with new tags
+                    manageableTagAdapter.updateTags(availableTags)
+                    filterTagChipAdapter.notifyDataSetChanged()
+                }
+            } catch (e: Exception) {
+                // Silently handle - tags are not critical
+            }
+        }
     }
 }
