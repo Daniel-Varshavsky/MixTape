@@ -14,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- Top Bar -->
+        <!-- Compact Top Bar -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/topBar"
             android:layout_width="0dp"
@@ -23,32 +23,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
-
-            <!-- App Icon -->
-            <androidx.appcompat.widget.AppCompatImageView
-                android:id="@+id/iconMusic"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/sharp_music_note_2_24"
-                app:tint="@color/white"
-                android:layout_marginStart="16dp"
-                app:layout_constraintStart_toEndOf="@id/btnMenu"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-
-            <!-- App Title -->
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/appTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="MixTape"
-                android:textColor="@color/white"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_marginStart="8dp"
-                app:layout_constraintStart_toEndOf="@id/iconMusic"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
 
             <!-- Menu Button -->
             <com.google.android.material.button.MaterialButton
@@ -61,10 +35,46 @@
                 app:backgroundTint="@android:color/transparent"
                 android:contentDescription="Open menu"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Logout Button -->
+            <!-- App Icon -->
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/iconMusic"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/sharp_music_note_2_24"
+                app:tint="@color/white"
+                android:layout_marginStart="16dp"
+                app:layout_constraintStart_toEndOf="@id/btnMenu"
+                app:layout_constraintTop_toTopOf="@id/btnMenu"
+                app:layout_constraintBottom_toBottomOf="@id/btnMenu" />
+
+            <!-- App Title -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/appTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MixTape"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginStart="8dp"
+                app:layout_constraintStart_toEndOf="@id/iconMusic"
+                app:layout_constraintTop_toTopOf="@id/btnMenu"
+                app:layout_constraintBottom_toBottomOf="@id/btnMenu" />
+
+            <!-- User Name - positioned just below menu button -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/userName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User"
+                android:textColor="@color/white"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintEnd_toStartOf="@id/btnLogout"
+                app:layout_constraintTop_toBottomOf="@id/btnMenu" />
+
+            <!-- Logout Button - vertically centered with username -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnLogout"
                 android:layout_width="48dp"
@@ -75,20 +85,8 @@
                 app:backgroundTint="@android:color/transparent"
                 android:contentDescription="Logout"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-
-            <!-- User Name -->
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/userName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="User"
-                android:textColor="@color/white"
-                android:layout_marginEnd="8dp"
-                app:layout_constraintEnd_toStartOf="@id/btnLogout"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintTop_toTopOf="@id/userName"
+                app:layout_constraintBottom_toBottomOf="@id/userName" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -208,7 +206,7 @@
                 android:id="@+id/itemCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="6 items"
+                android:text="0 items"
                 android:textColor="@color/gray_400"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"

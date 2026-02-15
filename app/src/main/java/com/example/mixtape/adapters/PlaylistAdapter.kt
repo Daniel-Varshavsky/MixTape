@@ -1,5 +1,6 @@
 package com.example.mixtape.adapters
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -104,10 +105,10 @@ class PlaylistAdapter(
     private fun showDeleteConfirmation(context: android.content.Context, playlist: Playlist, position: Int) {
         AlertDialog.Builder(context)
             .setTitle("Delete Playlist")
-            .setMessage("Are you sure you want to delete '${playlist.name}'? This action cannot be undone.")
+            .setMessage("Are you sure you want to delete '${playlist.name}'?\n\nThis will permanently delete:\n• The playlist itself\n• All ${playlist.songs} songs in this playlist\n• All ${playlist.videos} videos in this playlist\n• All associated media files from storage\n\nThis action cannot be undone.")
             .setPositiveButton("Delete") { dialog, _ ->
                 if (lifecycleScope != null) {
-                    deletePlaylist(playlist, position, context)
+                    deletePlaylistCompletely(playlist, position, context)
                 } else {
                     Toast.makeText(
                         context,
@@ -123,38 +124,81 @@ class PlaylistAdapter(
             .show()
     }
 
-    private fun deletePlaylist(playlist: Playlist, position: Int, context: android.content.Context) {
+    private fun deletePlaylistCompletely(playlist: Playlist, position: Int, context: android.content.Context) {
         lifecycleScope?.launch {
             try {
-                val result = repository.deletePlaylist(playlist.id)
+                // Step 1: Get all songs and videos in this playlist before deleting
+                val result = repository.getPlaylistWithMedia(playlist.id)
 
-                result.onSuccess {
-                    // Remove from local list
-                    playlists.removeAt(position)
-                    notifyItemRemoved(position)
-                    notifyItemRangeChanged(position, playlists.size)
+                result.onSuccess { (playlistData, songs, videos) ->
+                    var deletionErrors = 0
 
-                    Toast.makeText(
-                        context,
-                        "Playlist '${playlist.name}' deleted",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // Step 2: Delete all songs completely (from database and storage)
+                    for (song in songs) {
+                        val songDeletionResult = repository.deleteSongCompletely(song.id)
+                        if (songDeletionResult.isFailure) {
+                            deletionErrors++
+                            Log.e("PlaylistAdapter", "Failed to delete song ${song.id}: ${songDeletionResult.exceptionOrNull()?.message}")
+                        }
+                    }
 
-                    // Notify parent activity
-                    onPlaylistDeleted(playlist.id)
+                    // Step 3: Delete all videos completely (from database and storage)
+                    for (video in videos) {
+                        val videoDeletionResult = repository.deleteVideoCompletely(video.id)
+                        if (videoDeletionResult.isFailure) {
+                            deletionErrors++
+                            Log.e("PlaylistAdapter", "Failed to delete video ${video.id}: ${videoDeletionResult.exceptionOrNull()?.message}")
+                        }
+                    }
+
+                    // Step 4: Delete the playlist itself
+                    val playlistDeletionResult = repository.deletePlaylist(playlist.id)
+
+                    playlistDeletionResult.onSuccess {
+                        // Remove from local list
+                        playlists.removeAt(position)
+                        notifyItemRemoved(position)
+                        notifyItemRangeChanged(position, playlists.size)
+
+                        // Show result to user
+                        val message = if (deletionErrors == 0) {
+                            "Playlist '${playlist.name}' and all its content deleted successfully"
+                        } else {
+                            "Playlist '${playlist.name}' deleted, but $deletionErrors media files failed to delete"
+                        }
+
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+
+                        Log.d("PlaylistAdapter", "Playlist deletion complete: ${songs.size + videos.size} media items processed, $deletionErrors errors")
+
+                        // Notify parent activity
+                        onPlaylistDeleted(playlist.id)
+
+                    }.onFailure { exception ->
+                        Toast.makeText(
+                            context,
+                            "Error deleting playlist: ${exception.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        Log.e("PlaylistAdapter", "Error deleting playlist: ${exception.message}", exception)
+                    }
+
                 }.onFailure { exception ->
                     Toast.makeText(
                         context,
-                        "Error deleting playlist: ${exception.message}",
+                        "Error loading playlist content for deletion: ${exception.message}",
                         Toast.LENGTH_LONG
                     ).show()
+                    Log.e("PlaylistAdapter", "Error loading playlist for deletion: ${exception.message}", exception)
                 }
+
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
                     "Error: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+                Log.e("PlaylistAdapter", "Exception in deletePlaylistCompletely: ${e.message}", e)
             }
         }
     }

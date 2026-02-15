@@ -46,7 +46,7 @@ class FilterTagChipAdapter(
 
     private fun updateChipAppearance(chip: Chip, isSelected: Boolean) {
         val color = if (isSelected)
-            chip.context.getColorStateList(R.color.red_15)
+            chip.context.getColorStateList(R.color.chip_selected)
         else
             chip.context.getColorStateList(R.color.black)
 

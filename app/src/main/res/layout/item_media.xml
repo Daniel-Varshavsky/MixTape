@@ -53,7 +53,7 @@
             android:id="@+id/mediaDuration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="3:45"
+            android:text="0:00"
             android:textColor="@color/gray_400"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/mediaIcon"
