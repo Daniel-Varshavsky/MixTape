@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     activity_music_player.xml
-    Changes from old layout:
-      • Added buttonRepeat (ImageButton) in the controls RelativeLayout,
-        placed to the left of buttonFastRewind so the row reads:
-        [Repeat] [FastRewind] [Previous] [Play/Pause] [Next] [FastForward]
-      • Kept all existing IDs intact so nothing else breaks.
+    Fixed button layout:
+      • Swapped Fast Rewind with Previous (Fast Rewind now closer to Play button)
+      • Swapped Fast Forward with Next (Fast Forward now closer to Play button)
+      • New order: [Repeat] [Previous] [FastRewind] [Play/Pause] [FastForward] [Next]
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -103,15 +102,12 @@
             android:layout_height="match_parent">
 
             <!--
-                Layout of the 6 control buttons (centred on playButton):
-
-                [Repeat·40dp]  [FastRewind·40dp]  [Previous·50dp]
+                Fixed layout of the 6 control buttons:
+                [Repeat·36dp]  [Previous·50dp]  [FastRewind·40dp]
                                [Play/Pause·70dp]
-                               [Next·50dp]  [FastForward·40dp]
+                               [FastForward·40dp]  [Next·50dp]
 
-                buttonRepeat sits to the left of buttonFastRewind.
-                All vertical positions match the originals; only
-                buttonRepeat is new.
+                Now Fast Forward/Rewind are closer to the play button, which is more intuitive.
             -->
 
             <!-- Centre: Play / Pause -->
@@ -122,48 +118,49 @@
                 android:layout_centerHorizontal="true"
                 android:background="@drawable/baseline_pause_24"/>
 
-            <!-- Right of play: Next -->
-            <ImageButton
-                android:id="@+id/buttonNext"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_marginTop="15dp"
-                android:layout_toEndOf="@+id/playButton"
-                android:background="@drawable/baseline_skip_next_24" />
-
-            <!-- Left of play: Previous -->
-            <ImageButton
-                android:id="@+id/buttonPrevious"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_marginTop="15dp"
-                android:layout_toStartOf="@+id/playButton"
-                android:background="@drawable/baseline_skip_previous_24" />
-
-            <!-- Right of Next: Fast Forward -->
+            <!-- Right of play: Fast Forward -->
             <ImageButton
                 android:id="@+id/buttonFastForward"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginTop="20dp"
-                android:layout_marginStart="15dp"
-                android:layout_toEndOf="@+id/buttonNext"
+                android:layout_marginStart="10dp"
+                android:layout_toEndOf="@+id/playButton"
                 android:background="@drawable/baseline_fast_forward_24" />
 
-            <!-- Left of Previous: Fast Rewind -->
+            <!-- Left of play: Fast Rewind -->
             <ImageButton
                 android:id="@+id/buttonFastRewind"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginTop="20dp"
-                android:layout_marginEnd="15dp"
-                android:layout_toStartOf="@+id/buttonPrevious"
+                android:layout_marginEnd="10dp"
+                android:layout_toStartOf="@+id/playButton"
                 android:background="@drawable/baseline_fast_rewind_24" />
 
+            <!-- Right of Fast Forward: Next -->
+            <ImageButton
+                android:id="@+id/buttonNext"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginStart="15dp"
+                android:layout_toEndOf="@+id/buttonFastForward"
+                android:background="@drawable/baseline_skip_next_24" />
+
+            <!-- Left of Fast Rewind: Previous -->
+            <ImageButton
+                android:id="@+id/buttonPrevious"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginEnd="15dp"
+                android:layout_toStartOf="@+id/buttonFastRewind"
+                android:background="@drawable/baseline_skip_previous_24" />
+
             <!--
-                ★ NEW: Repeat button
-                Placed to the left of buttonFastRewind.
-                Uses ic_repeat (off) / ic_repeat_active (on) — see drawables list.
+                ★ Repeat button
+                Placed to the left of buttonPrevious.
             -->
             <ImageButton
                 android:id="@+id/buttonRepeat"
@@ -171,7 +168,7 @@
                 android:layout_height="36dp"
                 android:layout_marginTop="22dp"
                 android:layout_marginEnd="10dp"
-                android:layout_toStartOf="@+id/buttonFastRewind"
+                android:layout_toStartOf="@+id/buttonPrevious"
                 android:background="@drawable/outline_repeat_24"
                 android:contentDescription="Toggle repeat" />
 
