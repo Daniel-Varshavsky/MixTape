@@ -30,7 +30,10 @@ import java.io.File
  * MusicPlayerService
  *
  * A foreground Service that owns the MediaPlayer and exposes playback controls
- * to bound clients (MusicPlayerActivity) through the ServiceBinder.
+ * to bound clients (MusicPlayerActivity and VideoPlayerActivity) through the ServiceBinder.
+ *
+ * FIXED VERSION: Handles mixed media (audio/video) transitions properly by decoupling
+ * navigation from automatic playback and adding media type checking.
  *
  * The notification shows persistent media controls (previous, play/pause, next, repeat)
  * that work even when the app is in the background or the screen is off.
@@ -40,7 +43,8 @@ import java.io.File
  *   Service  ──callbacks──►  Activity (UI updates via Listener interface)
  *   Notification buttons  ──PendingIntent──►  Service (ACTION_* intent actions)
  *
- * Updated to handle Firebase Storage URLs for streaming music files.
+ * Updated to handle Firebase Storage URLs for streaming music files and proper
+ * transitions between audio and video content.
  */
 
 @UnstableApi
@@ -76,6 +80,8 @@ class MusicPlayerService : Service() {
     private var songs: ArrayList<File> = arrayListOf()
     /** Song titles extracted from File names for display. */
     private var songTitles: ArrayList<String> = arrayListOf()
+    /** Media types (audio/video) for proper transitions. */
+    private var mediaTypes: ArrayList<String> = arrayListOf()
     private var currentPosition: Int = 0
     private var isRepeatOn: Boolean = false
 
@@ -179,11 +185,18 @@ class MusicPlayerService : Service() {
         }
 
         // Store media types for smart transitions
+        this.mediaTypes.clear()
         if (mediaTypes != null && mediaTypes.size == songList.size) {
+            this.mediaTypes.addAll(mediaTypes)
             Log.d(TAG, "Media types provided: ${mediaTypes.joinToString(", ")}")
+        } else {
+            // Default all to audio if no media types provided
+            this.mediaTypes.addAll(List(songList.size) { "audio" })
+            Log.d(TAG, "No media types provided, defaulting all to audio")
         }
 
-        playCurrent()
+        // Start playback immediately for initial setup
+        playCurrentMedia()
     }
 
     /**
@@ -215,12 +228,93 @@ class MusicPlayerService : Service() {
         }
 
         // Store media types for smart transitions
+        this.mediaTypes.clear()
         if (mediaTypes != null && mediaTypes.size == songList.size) {
+            this.mediaTypes.addAll(mediaTypes)
             Log.d(TAG, "Media types provided: ${mediaTypes.joinToString(", ")}")
+        } else {
+            // Default all to audio if no media types provided
+            this.mediaTypes.addAll(List(songList.size) { "audio" })
+            Log.d(TAG, "No media types provided, defaulting all to audio")
         }
 
-        // DON'T call playCurrent() - let VideoPlayerActivity handle playback
+        // DON'T call playCurrentMedia() - let VideoPlayerActivity handle playback
         Log.d(TAG, "Playlist initialized without autoplay - VideoPlayerActivity will control playback")
+    }
+
+    /**
+     * FIXED: Navigation methods now only change position and notify listeners.
+     * They don't automatically start playback - activities decide what to do.
+     */
+    fun playNext() {
+        currentPosition = (currentPosition + 1) % songs.size
+        notifyMediaChange()
+    }
+
+    fun playPrevious() {
+        currentPosition = if (currentPosition - 1 < 0) songs.size - 1 else currentPosition - 1
+        notifyMediaChange()
+    }
+
+    /**
+     * NEW: Method to just notify of position changes without triggering playback.
+     * This allows activities to decide whether to play audio, play video, or transition.
+     */
+    private fun notifyMediaChange() {
+        val songTitle = if (currentPosition < songTitles.size) songTitles[currentPosition] else "Unknown"
+        listeners.forEach {
+            it.onSongChanged(currentPosition, songTitle)
+        }
+        Log.d(TAG, "Notified position change to $currentPosition ($songTitle)")
+    }
+
+    /**
+     * NEW: Method for activities to explicitly trigger audio playback.
+     * Only call this when you want the service to actually play audio.
+     */
+    fun playCurrentMedia() {
+        val currentType = getCurrentMediaType()
+        if (currentType == "audio") {
+            Log.d(TAG, "Playing current audio media at position $currentPosition")
+            playCurrent()
+        } else {
+            Log.d(TAG, "Current media is $currentType, not playing audio")
+        }
+    }
+
+    /**
+     * NEW: Get the media type of the current position.
+     */
+    fun getCurrentMediaType(): String {
+        return if (currentPosition < mediaTypes.size) {
+            mediaTypes[currentPosition]
+        } else {
+            "audio" // Default fallback
+        }
+    }
+
+    /**
+     * NEW: Method to completely stop audio playback (used by VideoPlayerActivity).
+     */
+    fun stopAudioForVideo() {
+        mediaPlayer?.let { mp ->
+            if (mp.isPlaying) {
+                mp.pause()
+                listeners.forEach {
+                    it.onPlaybackStateChanged(false)
+                }
+                invalidateMediaSessionState()
+                updateNotification()
+                Log.d(TAG, "Audio stopped for video playback")
+            }
+        }
+    }
+
+    /**
+     * NEW: Check if the service should be controlling playback for current media.
+     */
+    fun shouldControlPlayback(): Boolean {
+        return getCurrentMediaType() == "audio"
     }
 
     fun togglePlayPause() {
@@ -259,16 +353,6 @@ class MusicPlayerService : Service() {
             invalidateMediaSessionState()
             updateNotification()
         }
-    }
-
-    fun playNext() {
-        currentPosition = (currentPosition + 1) % songs.size
-        playCurrent()
-    }
-
-    fun playPrevious() {
-        currentPosition = if (currentPosition - 1 < 0) songs.size - 1 else currentPosition - 1
-        playCurrent()
     }
 
     fun toggleRepeat() {
@@ -357,12 +441,18 @@ class MusicPlayerService : Service() {
     private fun playCurrent() {
         if (songs.isEmpty()) return
 
+        // Check if current media should be handled by this service
+        if (getCurrentMediaType() != "audio") {
+            Log.d(TAG, "Current media type is ${getCurrentMediaType()}, skipping audio playback")
+            return
+        }
+
         releasePlayer()
 
         val file = songs[currentPosition]
         val songTitle = if (currentPosition < songTitles.size) songTitles[currentPosition] else file.name
 
-        Log.d(TAG, "Playing media: $songTitle at position $currentPosition")
+        Log.d(TAG, "Playing audio: $songTitle at position $currentPosition")
 
         // Determine if this is a Firebase Storage URL or a local file
         val uri = if (file.exists() && file.length() < 1000) {
