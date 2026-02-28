@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Media file access permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -15,6 +16,15 @@
     <!-- Storage access for older Android versions -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- Required for MusicPlayerService to call startForeground() -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Required on API 34+ to specify the foreground service type -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Required for BarVisualizerView (Android classifies the Visualizer API
+         as audio capture even for your own app's output on API 29+) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -64,6 +74,28 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".PlaylistSelectionActivity" />
         </activity>
+
+        <!-- Music Player Activity -->
+        <activity
+            android:name=".MusicPlayerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".PlaylistActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".PlaylistActivity" />
+        </activity>
+
+        <!--
+            MusicPlayerService — foregroundServiceType="mediaPlayback" is required:
+              • On API 29+ to call startForeground() at all for media services
+              • On API 34+ the FOREGROUND_SERVICE_MEDIA_PLAYBACK permission is also
+                required (declared above) or the service will be killed immediately
+        -->
+        <service
+            android:name=".service.MusicPlayerService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
 
     </application>
 

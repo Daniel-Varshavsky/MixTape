@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_music_player.xml
+    Changes from old layout:
+      • Added buttonRepeat (ImageButton) in the controls RelativeLayout,
+        placed to the left of buttonFastRewind so the row reads:
+        [Repeat] [FastRewind] [Previous] [Play/Pause] [Next] [FastForward]
+      • Kept all existing IDs intact so nothing else breaks.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:orientation="vertical"
+    android:layoutDirection="ltr"
+    android:weightSum="10">
+
+    <!-- ── Top section: album art, song name, seekbar ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="7"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/txtSN"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:padding="10dp"
+            android:singleLine="true"
+            android:text="Song Name"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="22sp"
+            android:textStyle="italic" />
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="250dp"
+            android:layout_height="250dp"
+            android:layout_marginBottom="8dp"
+            android:src="@drawable/music" />
+
+        <!-- Seekbar row: [0:00]──seekbar──[4:10] -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp">
+
+            <SeekBar
+                android:id="@+id/seekbar"
+                android:layout_width="250dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerInParent="true"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="20dp"
+                android:thumbTint="@color/red"/>
+
+            <TextView
+                android:id="@+id/txtStart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerInParent="true"
+                android:layout_marginStart="20dp"
+                android:layout_toStartOf="@+id/seekbar"
+                android:text="0:00"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/txtStop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerInParent="true"
+                android:layout_marginEnd="20dp"
+                android:layout_toEndOf="@+id/seekbar"
+                android:text="0:00"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+
+    <!-- ── Bottom section: playback controls + visualizer ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <!--
+                Layout of the 6 control buttons (centred on playButton):
+
+                [Repeat·40dp]  [FastRewind·40dp]  [Previous·50dp]
+                               [Play/Pause·70dp]
+                               [Next·50dp]  [FastForward·40dp]
+
+                buttonRepeat sits to the left of buttonFastRewind.
+                All vertical positions match the originals; only
+                buttonRepeat is new.
+            -->
+
+            <!-- Centre: Play / Pause -->
+            <ImageButton
+                android:id="@+id/playButton"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_centerHorizontal="true"
+                android:background="@drawable/baseline_pause_24"/>
+
+            <!-- Right of play: Next -->
+            <ImageButton
+                android:id="@+id/buttonNext"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="15dp"
+                android:layout_toEndOf="@+id/playButton"
+                android:background="@drawable/baseline_skip_next_24" />
+
+            <!-- Left of play: Previous -->
+            <ImageButton
+                android:id="@+id/buttonPrevious"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="15dp"
+                android:layout_toStartOf="@+id/playButton"
+                android:background="@drawable/baseline_skip_previous_24" />
+
+            <!-- Right of Next: Fast Forward -->
+            <ImageButton
+                android:id="@+id/buttonFastForward"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginStart="15dp"
+                android:layout_toEndOf="@+id/buttonNext"
+                android:background="@drawable/baseline_fast_forward_24" />
+
+            <!-- Left of Previous: Fast Rewind -->
+            <ImageButton
+                android:id="@+id/buttonFastRewind"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginEnd="15dp"
+                android:layout_toStartOf="@+id/buttonPrevious"
+                android:background="@drawable/baseline_fast_rewind_24" />
+
+            <!--
+                ★ NEW: Repeat button
+                Placed to the left of buttonFastRewind.
+                Uses ic_repeat (off) / ic_repeat_active (on) — see drawables list.
+            -->
+            <ImageButton
+                android:id="@+id/buttonRepeat"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="22dp"
+                android:layout_marginEnd="10dp"
+                android:layout_toStartOf="@+id/buttonFastRewind"
+                android:background="@drawable/outline_repeat_24"
+                android:contentDescription="Toggle repeat" />
+
+            <!-- Audio visualizer — built-in Android Visualizer API, no third-party lib -->
+            <com.example.mixtape.ui.BarVisualizerView
+                android:id="@+id/blast"
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                android:layout_alignParentBottom="true" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
