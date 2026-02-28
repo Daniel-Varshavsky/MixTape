@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_video_player.xml
+    Features:
+    - Fullscreen VideoView as background
+    - Overlay controls that can auto-hide
+    - Same control layout as music player
+    - Top controls: title and fullscreen toggle
+    - Bottom controls: seekbar and playback buttons
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:layoutDirection="ltr"
+    android:textDirection="ltr">
+
+    <!-- Main VideoView (fullscreen background) -->
+    <VideoView
+        android:id="@+id/videoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerInParent="true" />
+
+    <!-- Controls Overlay -->
+    <RelativeLayout
+        android:id="@+id/controlsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Top Controls (Title + Fullscreen) -->
+        <LinearLayout
+            android:id="@+id/topControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:background="@drawable/gradient_top_overlay"
+            android:gravity="center_vertical">
+
+            <!-- Video Title -->
+            <TextView
+                android:id="@+id/txtVideoName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Video Name"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
+                android:layout_marginEnd="16dp" />
+
+            <!-- Fullscreen Toggle Button -->
+            <ImageButton
+                android:id="@+id/buttonFullscreen"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/baseline_fullscreen_24"
+                android:contentDescription="Toggle fullscreen"
+                app:tint="@color/white" />
+
+        </LinearLayout>
+
+        <!-- Bottom Controls -->
+        <LinearLayout
+            android:id="@+id/bottomControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:orientation="vertical"
+            android:background="@drawable/gradient_bottom_overlay"
+            android:padding="16dp">
+
+            <!-- Seekbar + Time Labels -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp">
+
+                <!-- Start Time -->
+                <TextView
+                    android:id="@+id/txtVideoStart"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:text="0:00"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:layout_marginEnd="12dp" />
+
+                <!-- Seekbar -->
+                <SeekBar
+                    android:id="@+id/videoSeekbar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@id/txtVideoStop"
+                    android:layout_toEndOf="@id/txtVideoStart"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:progressTint="@color/red"
+                    android:thumbTint="@color/red" />
+
+                <!-- End Time -->
+                <TextView
+                    android:id="@+id/txtVideoStop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="0:00"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:layout_marginStart="12dp" />
+
+            </RelativeLayout>
+
+            <!-- Playback Controls -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="8dp">
+
+                <!-- Repeat Button -->
+                <ImageButton
+                    android:id="@+id/buttonRepeat"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/outline_repeat_24"
+                    android:contentDescription="Toggle repeat"
+                    android:layout_marginEnd="8dp"
+                    app:tint="@color/white" />
+
+                <!-- Previous Button -->
+                <ImageButton
+                    android:id="@+id/buttonPrevious"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/baseline_skip_previous_24"
+                    android:contentDescription="Previous video"
+                    android:layout_marginEnd="8dp"
+                    app:tint="@color/white" />
+
+                <!-- Fast Rewind Button -->
+                <ImageButton
+                    android:id="@+id/buttonFastRewind"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/baseline_fast_rewind_24"
+                    android:contentDescription="Rewind 10 seconds"
+                    android:layout_marginEnd="16dp"
+                    app:tint="@color/white" />
+
+                <!-- Play/Pause Button (larger, central) -->
+                <ImageButton
+                    android:id="@+id/buttonPlay"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:background="@drawable/circular_button_background"
+                    android:src="@drawable/baseline_play_arrow_24"
+                    android:contentDescription="Play/Pause"
+                    android:scaleType="centerInside"
+                    app:tint="@color/white" />
+
+                <!-- Fast Forward Button -->
+                <ImageButton
+                    android:id="@+id/buttonFastForward"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/baseline_fast_forward_24"
+                    android:contentDescription="Forward 10 seconds"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="8dp"
+                    app:tint="@color/white" />
+
+                <!-- Next Button -->
+                <ImageButton
+                    android:id="@+id/buttonNext"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/baseline_skip_next_24"
+                    android:contentDescription="Next video"
+                    android:layout_marginStart="8dp"
+                    app:tint="@color/white" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

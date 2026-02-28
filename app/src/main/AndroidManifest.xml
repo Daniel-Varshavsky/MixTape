@@ -86,6 +86,13 @@
                 android:value=".PlaylistActivity" />
         </activity>
 
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:screenOrientation="sensor"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <!--
             MusicPlayerService — foregroundServiceType="mediaPlayback" is required:
               • On API 29+ to call startForeground() at all for media services
