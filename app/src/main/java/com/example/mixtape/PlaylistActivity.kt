@@ -134,6 +134,16 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
         syncRepeatButton(isRepeat)
     }
 
+    /**
+     * NEW: Required implementation for PlayerListener interface.
+     * PlaylistActivity doesn't need to handle activity switches since it's the launcher.
+     */
+    override fun onRequestActivitySwitch(position: Int, mediaType: String) {
+        // PlaylistActivity doesn't need to handle activity switches
+        // It just launches the appropriate player activity directly
+        Log.d("PlaylistActivity", "Activity switch requested but not needed in PlaylistActivity")
+    }
+
     // ── Init helpers ──────────────────────────────────────────────────────────
 
     private fun initViews() {
