@@ -24,28 +24,30 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.example.mixtape.R
 import com.example.mixtape.MusicPlayerActivity
+import com.example.mixtape.VideoPlayerActivity
 import java.io.File
 
 /**
  * MusicPlayerService
  *
- * FIXED VERSION: Handles clean stop-and-start transitions between different media types.
- * No more seamless transitions - current media fully stops, activity transitions occur,
- * and new media starts fresh.
+ * ENHANCED VERSION: Now supports background video audio playback!
  *
- * TRANSITION FIX: Modified handlePositionChange() to defer audio playback when activity
- * transitions are needed, preventing the video→audio skipping issue.
+ * NEW FEATURES:
+ * - Video audio can continue playing when app is minimized
+ * - MediaPlayer handles audio for both audio files AND video files
+ * - VideoPlayerActivity uses service for audio, VideoView for visuals only
+ * - Seamless background playback for mixed audio/video playlists
  *
- * The notification shows persistent media controls (previous, play/pause, next, repeat)
- * that work even when the app is in the background or the screen is off.
+ * The service now manages audio for ALL media types:
+ * - Pure audio files: Normal MediaPlayer behavior
+ * - Video files: MediaPlayer extracts and plays audio only, VideoView handles visuals
+ * - Background mode: Audio continues regardless of activity state
  *
  * Interaction flow:
- *   Activity  ──bind──►  Service (controls MediaPlayer + MediaSession)
+ *   Activity  ──bind──►  Service (controls MediaPlayer audio for ALL media)
  *   Service  ──callbacks──►  Activity (UI updates via Listener interface)
+ *   VideoPlayerActivity ──sync──► Service (position synchronization for video+audio)
  *   Notification buttons  ──PendingIntent──►  Service (ACTION_* intent actions)
- *
- * Updated to handle Firebase Storage URLs for streaming music files and proper
- * clean transitions between audio and video content.
  */
 
 @UnstableApi
@@ -89,12 +91,16 @@ class MusicPlayerService : Service() {
     /** Track which activity context we're currently in to handle transitions properly */
     private var currentActivityContext: String = "unknown" // "audio", "video", or "unknown"
 
+    /** NEW: Track current media type being played for proper notification display */
+    private var currentMediaType: String = "audio"
+
     /** Callback interface so the bound Activity can react to service-driven events. */
     interface PlayerListener {
         fun onSongChanged(position: Int, songName: String)
         fun onPlaybackStateChanged(isPlaying: Boolean)
         fun onRepeatChanged(isRepeat: Boolean)
-        fun onRequestActivitySwitch(position: Int, mediaType: String)  // NEW: Request activity switch
+        fun onRequestActivitySwitch(position: Int, mediaType: String)  // Request activity switch
+        fun onVideoPositionUpdate(position: Int, duration: Int)  // NEW: For video sync
     }
 
     private val listeners = mutableSetOf<PlayerListener>()
@@ -256,14 +262,16 @@ class MusicPlayerService : Service() {
     }
 
     /**
-     * FIXED: Handle what happens when position changes.
+     * ENHANCED: Handle what happens when position changes.
      * Uses activity context tracking to properly determine when to transition vs play.
+     * Now supports both audio files and video audio playback.
      */
     private fun handlePositionChange() {
         val mediaType = getCurrentMediaType()
         val songTitle = if (currentPosition < this.songTitles.size) this.songTitles[currentPosition] else "Unknown"
 
         Log.d(TAG, "Position $currentPosition is $mediaType: $songTitle")
+        currentMediaType = mediaType
 
         // Always notify listeners of the position change first
         listeners.forEach {
@@ -282,10 +290,17 @@ class MusicPlayerService : Service() {
                 notifyActivitySwitchRequest()
             }
         } else {
-            // This is video - update context and request activity switch
-            currentActivityContext = "video"
-            Log.d(TAG, "Requesting activity switch to video player")
-            notifyActivitySwitchRequest()
+            // This is video - check if we're already in video context
+            if (currentActivityContext == "video") {
+                // We're already in video context, start playing video audio
+                Log.d(TAG, "Playing video audio at position $currentPosition (in video context)")
+                playCurrentVideoAudio()
+            } else {
+                // Need to transition to VideoPlayerActivity
+                Log.d(TAG, "Transitioning to video context - requesting activity switch")
+                currentActivityContext = "video"
+                notifyActivitySwitchRequest()
+            }
         }
     }
 
@@ -313,7 +328,7 @@ class MusicPlayerService : Service() {
 
     /**
      * Start playing audio at the current position.
-     * Only call this when you know the current position is audio.
+     * Works for both pure audio files and video audio extraction.
      */
     fun playCurrentAudio() {
         if (getCurrentMediaType() != "audio") {
@@ -325,7 +340,35 @@ class MusicPlayerService : Service() {
 
         // Set audio context when starting audio playback
         currentActivityContext = "audio"
+        currentMediaType = "audio"
 
+        startMediaPlayerPlayback()
+    }
+
+    /**
+     * NEW: Start playing video audio at the current position.
+     * The MediaPlayer handles audio while VideoPlayerActivity handles visuals.
+     */
+    fun playCurrentVideoAudio() {
+        if (getCurrentMediaType() != "video") {
+            Log.w(TAG, "playCurrentVideoAudio called but current media is not video")
+            return
+        }
+
+        Log.d(TAG, "Starting video audio playback at position $currentPosition")
+
+        // Set video context when starting video audio playback
+        currentActivityContext = "video"
+        currentMediaType = "video"
+
+        startMediaPlayerPlayback()
+    }
+
+    /**
+     * NEW: Common method to start MediaPlayer for both audio and video content.
+     * For video files, MediaPlayer extracts audio only.
+     */
+    private fun startMediaPlayerPlayback() {
         // Make sure any previous player is released
         releasePlayer()
 
@@ -386,6 +429,11 @@ class MusicPlayerService : Service() {
                         invalidateMediaSessionState()
                         updateNotification()
 
+                        // Start position updates for video sync
+                        if (currentMediaType == "video") {
+                            startVideoPositionUpdates()
+                        }
+
                         // Promote to foreground so Android won't kill us mid-song
                         startForeground(NOTIFICATION_ID, buildNotification())
                     }
@@ -410,16 +458,25 @@ class MusicPlayerService : Service() {
                     invalidateMediaSessionState()
                     updateNotification()
 
+                    // Start position updates for video sync
+                    if (currentMediaType == "video") {
+                        startVideoPositionUpdates()
+                    }
+
                     // Promote to foreground so Android won't kill us mid-song
                     startForeground(NOTIFICATION_ID, buildNotification())
                 }
 
                 setOnCompletionListener {
-                    Log.d(TAG, "Audio playback completed")
+                    Log.d(TAG, "${currentMediaType} playback completed")
                     if (isRepeatOn) {
-                        // Repeat current song
-                        Log.d(TAG, "Repeating current song")
-                        playCurrentAudio()
+                        // Repeat current item
+                        Log.d(TAG, "Repeating current ${currentMediaType}")
+                        if (currentMediaType == "video") {
+                            playCurrentVideoAudio()
+                        } else {
+                            playCurrentAudio()
+                        }
                     } else {
                         // Move to next item
                         Log.d(TAG, "Moving to next item after completion")
@@ -434,6 +491,38 @@ class MusicPlayerService : Service() {
             }
         }
     }
+
+    /**
+     * NEW: Start position updates for video synchronization.
+     * This allows VideoPlayerActivity to sync its VideoView with the audio.
+     */
+    private fun startVideoPositionUpdates() {
+        if (currentMediaType != "video") return
+
+        val updateRunnable = object : Runnable {
+            override fun run() {
+                val mp = mediaPlayer
+                if (mp != null && mp.isPlaying) {
+                    val position = mp.currentPosition
+                    val duration = mp.duration
+
+                    listeners.forEach {
+                        it.onVideoPositionUpdate(position, duration)
+                    }
+
+                    // Schedule next update
+                    handler.postDelayed(this, 500)
+                } else {
+                    Log.d(TAG, "Stopped video position updates")
+                }
+            }
+        }
+
+        Log.d(TAG, "Starting video position updates")
+        handler.post(updateRunnable)
+    }
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
      * Handle playback errors by moving to the next item.
@@ -658,12 +747,6 @@ class MusicPlayerService : Service() {
      * engine to Media3. Unlike BasePlayer (unstable), it only requires you to
      * implement [getState] plus the handful of [handle*] methods for the commands
      * you advertise. Everything else is derived from the State snapshot.
-     *
-     * We advertise PLAY_PAUSE, SEEK_TO_NEXT, and SEEK_TO_PREVIOUS so that
-     * hardware/Bluetooth buttons and the notification MediaStyle work correctly.
-     *
-     * Note: SimpleBasePlayer is @UnstableApi — the @UnstableApi on MusicPlayerService
-     * covers this entire file.
      */
     @UnstableApi
     private inner class MusicPlayerStub : androidx.media3.common.SimpleBasePlayer(mainLooper) {
@@ -675,8 +758,6 @@ class MusicPlayerService : Service() {
             val playbackState = if (mediaPlayer != null) Player.STATE_READY else Player.STATE_IDLE
 
             // Duration lives on MediaItemData, not State.Builder directly.
-            // Build a one-item playlist entry so Media3 can expose duration
-            // to the notification and lock-screen seek bar.
             val currentItem = SimpleBasePlayer.MediaItemData.Builder(/* uid = */ 0)
                 .setDurationUs(
                     mediaPlayer?.duration?.let { it.toLong() * 1_000L } ?: C.TIME_UNSET
@@ -763,19 +844,17 @@ class MusicPlayerService : Service() {
                 CHANNEL_ID,
                 "Music Player",
                 NotificationManager.IMPORTANCE_LOW  // LOW = no sound, keeps it silent
-            )
-            channel.description = "Shows playback controls for the music player"
+            ).apply {
+                description = "Shows playback controls for the music player"
+            }
             getSystemService(NotificationManager::class.java)
                 ?.createNotificationChannel(channel)
         }
     }
 
     /**
-     * Builds a media-style notification with five actions:
-     *   [Previous] [Fast Rewind] [Play/Pause] [Fast Forward] [Next]
-     *
-     * Each button fires an explicit Intent to this service so it works
-     * even when the app process is not in the foreground.
+     * ENHANCED: Builds a media-style notification that adapts to content type.
+     * Shows "Now Playing" for audio, "Now Watching" for video.
      */
     private fun buildNotification(): Notification {
         val songName = if (currentPosition < this.songTitles.size) {
@@ -784,6 +863,10 @@ class MusicPlayerService : Service() {
             songs.getOrNull(currentPosition)?.name ?: "Unknown"
         }
         val playing = isPlaying()
+        val contentTitle = when (currentMediaType) {
+            "video" -> "Now Watching"
+            else -> "Now Playing"
+        }
 
         // ── Pending intents for each button ──────────────────────────────────
         fun actionPendingIntent(action: String): PendingIntent {
@@ -794,10 +877,14 @@ class MusicPlayerService : Service() {
             )
         }
 
-        // Tapping the notification body reopens the player Activity
-        val openAppIntent = Intent(this, MusicPlayerActivity::class.java).apply {
+        // Tapping the notification body reopens the appropriate Activity
+        val openAppIntent = when (currentMediaType) {
+            "video" -> Intent(this, VideoPlayerActivity::class.java)
+            else -> Intent(this, MusicPlayerActivity::class.java)
+        }.apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+
         val openAppPending = PendingIntent.getActivity(
             this, 0, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -807,7 +894,7 @@ class MusicPlayerService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.baseline_library_music_24)
-            .setContentTitle("Now Playing")
+            .setContentTitle(contentTitle)
             .setContentText(songName)
             .setContentIntent(openAppPending)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

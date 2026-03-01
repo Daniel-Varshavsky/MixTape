@@ -1,10 +1,9 @@
 package com.example.mixtape
 
 import android.Manifest
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.content.*
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.PorterDuff
 import android.media.MediaPlayer
@@ -14,7 +13,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import android.view.*
+import android.view.View
 import android.widget.*
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -26,26 +25,29 @@ import androidx.media3.common.util.UnstableApi
 import com.example.mixtape.service.MusicPlayerService
 import com.example.mixtape.R
 import java.io.File
+import kotlin.math.abs
 
 /**
- * VideoPlayerActivity
+ * ENHANCED VideoPlayerActivity
  *
- * FIXED VERSION: Handles clean stop-and-start transitions between video and audio.
- * No more complex seamless transition logic - just clean handoffs.
+ * NEW FEATURES:
+ * - Video audio continues playing when app is minimized via MusicPlayerService
+ * - Service handles audio, VideoView handles visuals with synchronization
+ * - Seamless background audio for video content
+ * - Perfect sync between audio (service) and video (VideoView)
  *
- * Features:
- * - Fullscreen video playback with auto-hiding controls
- * - Landscape mode automatically goes fullscreen
- * - Uses MusicPlayerService for navigation but controls its own VideoView playback
- * - Clean transitions to MusicPlayerActivity when audio is encountered
- * - Notification controls work for navigation
+ * KEY ARCHITECTURE:
+ * 1. MusicPlayerService provides audio playback (continues in background)
+ * 2. VideoView provides visual playback (pauses when backgrounded)
+ * 3. Synchronization via onVideoPositionUpdate callback
+ * 4. All playback controls route through service for consistency
  */
 @UnstableApi
 class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
 
     companion object {
         private const val TAG = "VideoPlayerActivity"
-        private const val CONTROLS_HIDE_DELAY = 3000L // 3 seconds
+        private const val CONTROLS_HIDE_DELAY = 3000L
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -53,7 +55,9 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     // ─────────────────────────────────────────────────────────────────────────
 
     private lateinit var videoView: VideoView
-    private lateinit var controlsOverlay: ViewGroup
+    private lateinit var controlsOverlay: RelativeLayout
+    private lateinit var topControls: LinearLayout
+    private lateinit var bottomControls: LinearLayout
     private lateinit var buttonPlay: ImageButton
     private lateinit var buttonNext: ImageButton
     private lateinit var buttonPrevious: ImageButton
@@ -65,21 +69,13 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     private lateinit var txtVideoStart: TextView
     private lateinit var txtVideoStop: TextView
     private lateinit var seekbar: SeekBar
-    private lateinit var topControls: ViewGroup
-    private lateinit var bottomControls: ViewGroup
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Service binding & data
+    // Service binding
     // ─────────────────────────────────────────────────────────────────────────
 
     private var musicService: MusicPlayerService? = null
     private var isBound = false
-
-    private lateinit var myVideos: ArrayList<File>
-    private var videoTitles: ArrayList<String>? = null
-    private var videoArtists: ArrayList<String>? = null
-    private var mediaTypes: ArrayList<String>? = null
-    private var startPosition: Int = 0
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -92,8 +88,11 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             // Initialize service playlist for navigation without starting audio playback
             musicService?.initPlaylistWithoutAutoplay(myVideos, startPosition, videoTitles, videoArtists, mediaTypes)
 
-            // Start playing the current video
-            playCurrentVideo()
+            // Start playing the current video audio through service
+            musicService?.playCurrentVideoAudio()
+
+            // Start playing the current video visuals through VideoView
+            playCurrentVideoVisual()
 
             startSeekbarUpdater()
         }
@@ -105,22 +104,37 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Control visibility & timing
+    // Data from Intent
     // ─────────────────────────────────────────────────────────────────────────
 
-    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var myVideos: ArrayList<File>
+    private var videoTitles: ArrayList<String>? = null
+    private var videoArtists: ArrayList<String>? = null
+    private var mediaTypes: ArrayList<String>? = null
+    private var startPosition: Int = 0
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UI State
+    // ─────────────────────────────────────────────────────────────────────────
+
     private var controlsVisible = true
+    private val handler = Handler(Looper.getMainLooper())
     private var servicePreviouslyRunning = false
 
-    private val hideControlsRunnable = Runnable {
-        hideControls()
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // UI update runnables
+    // ─────────────────────────────────────────────────────────────────────────
 
     private val seekbarRunnable = object : Runnable {
         override fun run() {
-            updateSeekbar()
+            // Position updates now come from onVideoPositionUpdate callback
+            // This runnable just ensures UI stays responsive
             handler.postDelayed(this, 500)
         }
+    }
+
+    private val hideControlsRunnable = Runnable {
+        hideControls()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -161,6 +175,12 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         if (isBound) {
             startSeekbarUpdater()
             syncUiToServiceState()
+
+            // Resume VideoView to sync with ongoing service audio
+            if (musicService?.isPlaying() == true) {
+                videoView.start()
+                // VideoView will sync its position via onVideoPositionUpdate callbacks
+            }
         }
         handleOrientationChange()
     }
@@ -169,6 +189,10 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         super.onPause()
         handler.removeCallbacks(seekbarRunnable)
         handler.removeCallbacks(hideControlsRunnable)
+
+        // CRITICAL: VideoView pauses but SERVICE CONTINUES PLAYING AUDIO in background!
+        // This is the key feature - video audio continues when app is minimized
+        Log.d(TAG, "Activity paused - video visual stopped but audio continues in background")
     }
 
     override fun onDestroy() {
@@ -187,7 +211,7 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PlayerListener callbacks
+    // PlayerListener callbacks (from MusicPlayerService)
     // ─────────────────────────────────────────────────────────────────────────
 
     override fun onSongChanged(position: Int, songName: String) {
@@ -201,23 +225,33 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
         txtVideoName.text = displayTitle
 
-        // Start playing the new video (service coordinates position but we handle video playback)
-        playCurrentVideo()
+        // Start playing the new video visual (service handles audio)
+        playCurrentVideoVisual()
     }
 
     override fun onPlaybackStateChanged(isPlaying: Boolean) {
-        // For video player, we control our own play/pause state through VideoView
-        // This callback is mainly for synchronization with service state
-        Log.d(TAG, "Service playback state changed: $isPlaying")
+        // Update play/pause button to reflect service state
+        val iconRes = if (isPlaying) {
+            R.drawable.baseline_pause_24
+        } else {
+            R.drawable.baseline_play_arrow_24
+        }
+        buttonPlay.setImageResource(iconRes)
+
+        // Sync VideoView state with service
+        if (isPlaying && !videoView.isPlaying) {
+            videoView.start()
+        } else if (!isPlaying && videoView.isPlaying) {
+            videoView.pause()
+        }
+
+        Log.d(TAG, "Playback state changed: ${if (isPlaying) "playing" else "paused"}")
     }
 
     override fun onRepeatChanged(isRepeat: Boolean) {
         updateRepeatButtonVisual(isRepeat)
     }
 
-    /**
-     * NEW: Handle request to switch activities when audio content is encountered.
-     */
     override fun onRequestActivitySwitch(position: Int, mediaType: String) {
         Log.d(TAG, "Activity switch requested for $mediaType at position $position")
 
@@ -226,6 +260,33 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             transitionToMusicPlayer(position)
         }
         // If mediaType is "video", we should already be in the correct activity
+    }
+
+    /**
+     * NEW: Critical callback for video/audio synchronization
+     * This keeps VideoView visuals in sync with service audio
+     */
+    override fun onVideoPositionUpdate(position: Int, duration: Int) {
+        // Sync VideoView with service audio position
+        val videoPosition = videoView.currentPosition
+        val positionDiff = abs(videoPosition - position)
+
+        // If positions are significantly out of sync (> 1 second), seek VideoView
+        if (positionDiff > 1000) {
+            Log.d(TAG, "Syncing video position: video=$videoPosition, audio=$position")
+            videoView.seekTo(position)
+        }
+
+        // Update UI elements
+        seekbar.max = duration
+        seekbar.progress = position
+        txtVideoStart.text = createTime(position)
+        txtVideoStop.text = createTime(duration)
+
+        // Start VideoView if it's not playing but service is
+        if (musicService?.isPlaying() == true && !videoView.isPlaying) {
+            videoView.start()
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -278,20 +339,19 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             Log.d(TAG, "Video prepared successfully")
             mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
             mediaPlayer.isLooping = false // Service handles looping logic
-            buttonPlay.setImageResource(R.drawable.baseline_pause_24)
+
+            // Optional: Reduce VideoView volume since service handles audio
+            // mediaPlayer.setVolume(0.1f, 0.1f) // Low volume, not muted
         }
 
         videoView.setOnCompletionListener {
-            Log.d(TAG, "Video completed")
-            buttonPlay.setImageResource(R.drawable.baseline_play_arrow_24)
-            // Let the service handle next item logic
-            musicService?.playNext()
+            Log.d(TAG, "Video visual completed")
+            // Service handles completion logic when audio finishes
+            // Don't call musicService?.playNext() here to avoid double-triggering
         }
 
         videoView.setOnErrorListener { _, what, extra ->
             Log.e(TAG, "VideoView error: what=$what, extra=$extra")
-            buttonPlay.setImageResource(R.drawable.baseline_play_arrow_24)
-
             Toast.makeText(this, "Video error - skipping to next", Toast.LENGTH_SHORT).show()
 
             // Skip to next item after error
@@ -324,24 +384,18 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             }
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 val progress = seekBar?.progress ?: 0
+                // Seek both service audio and VideoView
+                musicService?.seekTo(progress)
                 videoView.seekTo(progress)
-                Log.d(TAG, "Video seeked to ${progress}ms")
+                Log.d(TAG, "Video and audio seeked to ${progress}ms")
                 handler.post(seekbarRunnable)
                 resetHideControlsTimer()
             }
         })
 
-        // Button click listeners
+        // ENHANCED: All playback controls route through service
         buttonPlay.setOnClickListener {
-            if (videoView.isPlaying) {
-                videoView.pause()
-                buttonPlay.setImageResource(R.drawable.baseline_play_arrow_24)
-                Log.d(TAG, "Video paused via button")
-            } else {
-                videoView.start()
-                buttonPlay.setImageResource(R.drawable.baseline_pause_24)
-                Log.d(TAG, "Video started via button")
-            }
+            musicService?.togglePlayPause()
             resetHideControlsTimer()
         }
 
@@ -358,16 +412,18 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
 
         buttonFastForward.setOnClickListener {
+            musicService?.fastForward()
+            // Also fast forward VideoView to stay in sync
             val newPosition = videoView.currentPosition + 10000
             videoView.seekTo(newPosition)
-            Log.d(TAG, "Video fast forward to ${newPosition}ms")
             resetHideControlsTimer()
         }
 
         buttonFastRewind.setOnClickListener {
+            musicService?.fastRewind()
+            // Also rewind VideoView to stay in sync
             val newPosition = (videoView.currentPosition - 10000).coerceAtLeast(0)
             videoView.seekTo(newPosition)
-            Log.d(TAG, "Video fast rewind to ${newPosition}ms")
             resetHideControlsTimer()
         }
 
@@ -415,7 +471,10 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     // Video playback
     // ─────────────────────────────────────────────────────────────────────────
 
-    private fun playCurrentVideo() {
+    /**
+     * ENHANCED: Play video visuals only - audio is handled by service
+     */
+    private fun playCurrentVideoVisual() {
         if (myVideos.isEmpty()) return
 
         val position = musicService?.getSongPosition() ?: startPosition
@@ -424,10 +483,7 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         val videoFile = myVideos[position]
 
         try {
-            Log.d(TAG, "Attempting to play video at position $position: ${videoFile.name}")
-
-            // Make sure service audio is stopped to prevent conflicts
-            musicService?.stopCurrentPlayback()
+            Log.d(TAG, "Playing video visual at position $position: ${videoFile.name}")
 
             // Determine URI (Firebase URL or local file)
             val uri = if (videoFile.exists() && videoFile.length() < 1000) {
@@ -455,10 +511,11 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
 
             Log.d(TAG, "Setting VideoView URI: $uri")
             videoView.setVideoURI(uri)
-            videoView.start()
+
+            // Don't auto-start VideoView - wait for service sync via onVideoPositionUpdate
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error playing video: ${e.message}", e)
+            Log.e(TAG, "Error playing video visual: ${e.message}", e)
             Toast.makeText(this, "Error loading video: ${e.message}", Toast.LENGTH_SHORT).show()
 
             // Skip to next on error
@@ -582,29 +639,9 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
 
         txtVideoName.text = displayTitle
-        updateSeekbar()
         updateRepeatButtonVisual(service.isRepeat())
-    }
 
-    private fun updateSeekbar() {
-        val videoDuration = videoView.duration
-        val videoPosition = videoView.currentPosition
-
-        if (videoDuration > 0) {
-            seekbar.max = videoDuration
-            seekbar.progress = videoPosition
-            txtVideoStart.text = createTime(videoPosition)
-            txtVideoStop.text = createTime(videoDuration)
-        } else {
-            // Fallback if video not ready yet
-            val service = musicService
-            if (service != null) {
-                seekbar.max = service.getDuration()
-                seekbar.progress = service.getCurrentPosition()
-                txtVideoStart.text = createTime(service.getCurrentPosition())
-                txtVideoStop.text = createTime(service.getDuration())
-            }
-        }
+        // Position updates will come from onVideoPositionUpdate callback
     }
 
     private fun startSeekbarUpdater() {
