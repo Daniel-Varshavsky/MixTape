@@ -88,7 +88,14 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             // Check if service was already running (e.g. from previous activity)
             if (servicePreviouslyRunning) {
                 Log.d(TAG, "Service was already running, syncing UI state")
+                // Set audio context since we're in MusicPlayerActivity
+                musicService?.setActivityContext("audio")
                 syncUiToServiceState()
+                // FIXED: If we're transitioning from video to audio, start playback
+                if (musicService?.getCurrentMediaType() == "audio") {
+                    Log.d(TAG, "Detected transition from video, starting audio playback")
+                    musicService?.playCurrentAudio()
+                }
             } else {
                 // Initialize playlist and start playing
                 Log.d(TAG, "Initializing fresh playlist")
