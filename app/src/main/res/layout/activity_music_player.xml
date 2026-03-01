@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     activity_music_player.xml
-    Fixed button layout:
-      • Swapped Fast Rewind with Previous (Fast Rewind now closer to Play button)
-      • Swapped Fast Forward with Next (Fast Forward now closer to Play button)
-      • New order: [Repeat] [Previous] [FastRewind] [Play/Pause] [FastForward] [Next]
+    Modernized with Material Design components:
+      • LinearLayout → androidx.appcompat.widget.LinearLayoutCompat
+      • TextView → com.google.android.material.textview.MaterialTextView
+      • ImageView → androidx.appcompat.widget.AppCompatImageView
+      • ImageButton → com.google.android.material.button.MaterialButton
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -17,14 +18,14 @@
     android:weightSum="10">
 
     <!-- ── Top section: album art, song name, seekbar ── -->
-    <LinearLayout
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="7"
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/txtSN"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -39,7 +40,7 @@
             android:textSize="22sp"
             android:textStyle="italic" />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/imageView"
             android:layout_width="250dp"
             android:layout_height="250dp"
@@ -63,7 +64,7 @@
                 android:layout_marginBottom="20dp"
                 android:thumbTint="@color/red"/>
 
-            <TextView
+            <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/txtStart"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -75,7 +76,7 @@
                 android:textColor="@color/white"
                 android:textSize="14sp" />
 
-            <TextView
+            <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/txtStop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -89,10 +90,10 @@
 
         </RelativeLayout>
 
-    </LinearLayout>
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
     <!-- ── Bottom section: playback controls + visualizer ── -->
-    <LinearLayout
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="3">
@@ -102,74 +103,103 @@
             android:layout_height="match_parent">
 
             <!--
-                Fixed layout of the 6 control buttons:
-                [Repeat·36dp]  [Previous·50dp]  [FastRewind·40dp]
-                               [Play/Pause·70dp]
-                               [FastForward·40dp]  [Next·50dp]
-
-                Now Fast Forward/Rewind are closer to the play button, which is more intuitive.
+                Modernized control buttons using MaterialButton with proper icon properties:
+                [Repeat]  [Previous]  [FastRewind]  [Play/Pause]  [FastForward]  [Next]
             -->
 
             <!-- Centre: Play / Pause -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/playButton"
                 android:layout_width="70dp"
                 android:layout_height="70dp"
+                android:layout_marginTop="4dp"
                 android:layout_centerHorizontal="true"
-                android:background="@drawable/baseline_pause_24"/>
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_pause_24"
+                app:iconTint="@color/red"
+                app:iconSize="48dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Play/Pause" />
 
             <!-- Right of play: Fast Forward -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonFastForward"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
                 android:layout_marginStart="10dp"
                 android:layout_toEndOf="@+id/playButton"
-                android:background="@drawable/baseline_fast_forward_24" />
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_fast_forward_24"
+                app:iconTint="@color/white"
+                app:iconSize="32dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Fast forward" />
 
             <!-- Left of play: Fast Rewind -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonFastRewind"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="20dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
                 android:layout_marginEnd="10dp"
                 android:layout_toStartOf="@+id/playButton"
-                android:background="@drawable/baseline_fast_rewind_24" />
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_fast_rewind_24"
+                app:iconTint="@color/white"
+                app:iconSize="32dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Fast rewind" />
 
             <!-- Right of Fast Forward: Next -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonNext"
                 android:layout_width="50dp"
                 android:layout_height="50dp"
                 android:layout_marginTop="15dp"
                 android:layout_marginStart="15dp"
                 android:layout_toEndOf="@+id/buttonFastForward"
-                android:background="@drawable/baseline_skip_next_24" />
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_skip_next_24"
+                app:iconTint="@color/white"
+                app:iconSize="36dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Next track" />
 
             <!-- Left of Fast Rewind: Previous -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonPrevious"
                 android:layout_width="50dp"
                 android:layout_height="50dp"
                 android:layout_marginTop="15dp"
                 android:layout_marginEnd="15dp"
                 android:layout_toStartOf="@+id/buttonFastRewind"
-                android:background="@drawable/baseline_skip_previous_24" />
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_skip_previous_24"
+                app:iconTint="@color/white"
+                app:iconSize="36dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                android:contentDescription="Previous track" />
 
-            <!--
-                ★ Repeat button
-                Placed to the left of buttonPrevious.
-            -->
-            <ImageButton
+            <!-- Repeat button - now uses iconTint for proper color synchronization -->
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonRepeat"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginTop="22dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="15dp"
                 android:layout_marginEnd="10dp"
                 android:layout_toStartOf="@+id/buttonPrevious"
-                android:background="@drawable/outline_repeat_24"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/baseline_repeat_24"
+                app:iconTint="@color/white"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
                 android:contentDescription="Toggle repeat" />
 
             <!-- Audio visualizer — built-in Android Visualizer API, no third-party lib -->
@@ -181,6 +211,6 @@
 
         </RelativeLayout>
 
-    </LinearLayout>
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
-</LinearLayout>
+</androidx.appcompat.widget.LinearLayoutCompat>

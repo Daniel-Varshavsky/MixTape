@@ -27,8 +27,18 @@ import com.example.mixtape.R
 import java.io.File
 import kotlin.math.abs
 
+// UPDATED IMPORTS for Material Design components
+import androidx.appcompat.widget.LinearLayoutCompat
+import com.google.android.material.textview.MaterialTextView
+import com.google.android.material.button.MaterialButton
+
 /**
- * ENHANCED VideoPlayerActivity
+ * ENHANCED VideoPlayerActivity - MODERNIZED VERSION
+ *
+ * UPDATED to use Material Design components:
+ * - LinearLayout → LinearLayoutCompat
+ * - TextView → MaterialTextView
+ * - ImageButton → MaterialButton
  *
  * NEW FEATURES:
  * - Video audio continues playing when app is minimized via MusicPlayerService
@@ -51,23 +61,23 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Views
+    // Views - UPDATED to use Material Design components
     // ─────────────────────────────────────────────────────────────────────────
 
     private lateinit var videoView: VideoView
     private lateinit var controlsOverlay: RelativeLayout
-    private lateinit var topControls: LinearLayout
-    private lateinit var bottomControls: LinearLayout
-    private lateinit var buttonPlay: ImageButton
-    private lateinit var buttonNext: ImageButton
-    private lateinit var buttonPrevious: ImageButton
-    private lateinit var buttonFastForward: ImageButton
-    private lateinit var buttonFastRewind: ImageButton
-    private lateinit var buttonRepeat: ImageButton
-    private lateinit var buttonFullscreen: ImageButton
-    private lateinit var txtVideoName: TextView
-    private lateinit var txtVideoStart: TextView
-    private lateinit var txtVideoStop: TextView
+    private lateinit var topControls: LinearLayoutCompat
+    private lateinit var bottomControls: LinearLayoutCompat
+    private lateinit var buttonPlay: MaterialButton
+    private lateinit var buttonNext: MaterialButton
+    private lateinit var buttonPrevious: MaterialButton
+    private lateinit var buttonFastForward: MaterialButton
+    private lateinit var buttonFastRewind: MaterialButton
+    private lateinit var buttonRepeat: MaterialButton
+    private lateinit var buttonFullscreen: MaterialButton
+    private lateinit var txtVideoName: MaterialTextView
+    private lateinit var txtVideoStart: MaterialTextView
+    private lateinit var txtVideoStop: MaterialTextView
     private lateinit var seekbar: SeekBar
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -229,14 +239,15 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         playCurrentVideoVisual()
     }
 
+    // UPDATED: Now uses setIconResource for MaterialButton
     override fun onPlaybackStateChanged(isPlaying: Boolean) {
-        // Update play/pause button to reflect service state
         val iconRes = if (isPlaying) {
             R.drawable.baseline_pause_24
         } else {
             R.drawable.baseline_play_arrow_24
         }
-        buttonPlay.setImageResource(iconRes)
+        // Use setIconResource for MaterialButton instead of setImageResource
+        buttonPlay.setIconResource(iconRes)
 
         // Sync VideoView state with service
         if (isPlaying && !videoView.isPlaying) {
@@ -248,6 +259,7 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         Log.d(TAG, "Playback state changed: ${if (isPlaying) "playing" else "paused"}")
     }
 
+    // UPDATED: Now uses iconTint for MaterialButton
     override fun onRepeatChanged(isRepeat: Boolean) {
         updateRepeatButtonVisual(isRepeat)
     }
@@ -290,25 +302,25 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Setup methods
+    // Setup methods - UPDATED for Material Design components
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun findViews() {
-        videoView         = findViewById(R.id.videoView)
-        controlsOverlay   = findViewById(R.id.controlsOverlay)
-        topControls       = findViewById(R.id.topControls)
-        bottomControls    = findViewById(R.id.bottomControls)
-        buttonPlay        = findViewById(R.id.buttonPlay)
-        buttonNext        = findViewById(R.id.buttonNext)
-        buttonPrevious    = findViewById(R.id.buttonPrevious)
-        buttonFastForward = findViewById(R.id.buttonFastForward)
-        buttonFastRewind  = findViewById(R.id.buttonFastRewind)
-        buttonRepeat      = findViewById(R.id.buttonRepeat)
-        buttonFullscreen  = findViewById(R.id.buttonFullscreen)
-        txtVideoName      = findViewById(R.id.txtVideoName)
-        txtVideoStart     = findViewById(R.id.txtVideoStart)
-        txtVideoStop      = findViewById(R.id.txtVideoStop)
-        seekbar           = findViewById(R.id.videoSeekbar)
+        videoView         = findViewById<VideoView>(R.id.videoView)
+        controlsOverlay   = findViewById<RelativeLayout>(R.id.controlsOverlay)
+        topControls       = findViewById<LinearLayoutCompat>(R.id.topControls)
+        bottomControls    = findViewById<LinearLayoutCompat>(R.id.bottomControls)
+        buttonPlay        = findViewById<MaterialButton>(R.id.buttonPlay)
+        buttonNext        = findViewById<MaterialButton>(R.id.buttonNext)
+        buttonPrevious    = findViewById<MaterialButton>(R.id.buttonPrevious)
+        buttonFastForward = findViewById<MaterialButton>(R.id.buttonFastForward)
+        buttonFastRewind  = findViewById<MaterialButton>(R.id.buttonFastRewind)
+        buttonRepeat      = findViewById<MaterialButton>(R.id.buttonRepeat)
+        buttonFullscreen  = findViewById<MaterialButton>(R.id.buttonFullscreen)
+        txtVideoName      = findViewById<MaterialTextView>(R.id.txtVideoName)
+        txtVideoStart     = findViewById<MaterialTextView>(R.id.txtVideoStart)
+        txtVideoStop      = findViewById<MaterialTextView>(R.id.txtVideoStop)
+        seekbar           = findViewById<SeekBar>(R.id.videoSeekbar)
     }
 
     private fun readIntent() {
@@ -579,15 +591,16 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     // Fullscreen handling
     // ─────────────────────────────────────────────────────────────────────────
 
+    // UPDATED: Now uses setIconResource for MaterialButton
     private fun handleOrientationChange() {
         when (resources.configuration.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 enterFullscreen()
-                buttonFullscreen.setImageResource(R.drawable.baseline_fullscreen_exit_24)
+                buttonFullscreen.setIconResource(R.drawable.baseline_fullscreen_exit_24)
             }
             Configuration.ORIENTATION_PORTRAIT -> {
                 exitFullscreen()
-                buttonFullscreen.setImageResource(R.drawable.baseline_fullscreen_24)
+                buttonFullscreen.setIconResource(R.drawable.baseline_fullscreen_24)
             }
         }
     }
@@ -639,6 +652,8 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
 
         txtVideoName.text = displayTitle
+
+        // ADDED: Sync repeat button visual
         updateRepeatButtonVisual(service.isRepeat())
 
         // Position updates will come from onVideoPositionUpdate callback
@@ -649,10 +664,11 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         handler.post(seekbarRunnable)
     }
 
+    // UPDATED: Now uses iconTint for MaterialButton
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
-        buttonRepeat.setImageResource(
-            if (isRepeat) R.drawable.baseline_repeat_24 else R.drawable.outline_repeat_24
-        )
+        val tintColor = if (isRepeat) R.color.red else R.color.white
+        buttonRepeat.iconTint = resources.getColorStateList(tintColor, theme)
+        Log.d(TAG, "Repeat button tint updated: $isRepeat")
     }
 
     private fun createTime(duration: Int): String {

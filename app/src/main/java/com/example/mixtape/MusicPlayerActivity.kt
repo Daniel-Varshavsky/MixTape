@@ -13,10 +13,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
-import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.SeekBar
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -27,23 +24,20 @@ import com.example.mixtape.ui.BarVisualizerView
 import com.example.mixtape.R
 import java.io.File
 
+// UPDATED IMPORTS for Material Design components
+import androidx.appcompat.widget.AppCompatImageView
+import com.google.android.material.textview.MaterialTextView
+import com.google.android.material.button.MaterialButton
+
 /**
- * MusicPlayerActivity
+ * MusicPlayerActivity - MODERNIZED VERSION
  *
- * FIXED VERSION: Handles clean stop-and-start transitions between audio and video.
- * No more complex seamless transition logic - just clean handoffs.
+ * UPDATED to use Material Design components:
+ * - TextView → MaterialTextView
+ * - ImageView → AppCompatImageView
+ * - ImageButton → MaterialButton
  *
- * Responsibilities:
- *  - Bind to MusicPlayerService and delegate all playback calls to it.
- *  - Update the UI in response to service callbacks (PlayerListener).
- *  - Handle activity switches when video content is encountered.
- *  - Show/hide the repeat button state.
- *
- * The activity no longer tries to handle mixed media seamlessly -
- * when video is encountered, it cleanly transitions to VideoPlayerActivity.
- *
- * FIX APPLIED: The seekbarRunnable now updates both txtSStart AND txtSStop continuously,
- * ensuring the duration display is always up-to-date, similar to VideoPlayerActivity.
+ * This fixes the repeat button color synchronization by using consistent iconTint.
  */
 @UnstableApi
 class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
@@ -54,21 +48,21 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Views
+    // Views - UPDATED to use Material Design components
     // ─────────────────────────────────────────────────────────────────────────
 
-    private lateinit var buttonPlay: ImageButton
-    private lateinit var buttonNext: ImageButton
-    private lateinit var buttonPrevious: ImageButton
-    private lateinit var buttonFastForward: ImageButton
-    private lateinit var buttonFastRewind: ImageButton
-    private lateinit var buttonRepeat: ImageButton
-    private lateinit var txtSName: TextView
-    private lateinit var txtSStart: TextView
-    private lateinit var txtSStop: TextView
+    private lateinit var buttonPlay: MaterialButton
+    private lateinit var buttonNext: MaterialButton
+    private lateinit var buttonPrevious: MaterialButton
+    private lateinit var buttonFastForward: MaterialButton
+    private lateinit var buttonFastRewind: MaterialButton
+    private lateinit var buttonRepeat: MaterialButton
+    private lateinit var txtSName: MaterialTextView
+    private lateinit var txtSStart: MaterialTextView
+    private lateinit var txtSStop: MaterialTextView
     private lateinit var seekbar: SeekBar
     private lateinit var visualizer: BarVisualizerView
-    private lateinit var imageView: ImageView
+    private lateinit var imageView: AppCompatImageView
 
     // ─────────────────────────────────────────────────────────────────────────
     // Service binding
@@ -283,13 +277,19 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }, 300)
     }
 
+    // UPDATED: Now uses setIconResource for MaterialButton
     override fun onPlaybackStateChanged(isPlaying: Boolean) {
-        buttonPlay.setBackgroundResource(
-            if (isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24
-        )
+        val iconRes = if (isPlaying) {
+            R.drawable.baseline_pause_24
+        } else {
+            R.drawable.baseline_play_arrow_24
+        }
+        // Use setIconResource for MaterialButton instead of setBackgroundResource
+        buttonPlay.setIconResource(iconRes)
         Log.d(TAG, "Playback state changed: ${if (isPlaying) "playing" else "paused"}")
     }
 
+    // UPDATED: Now uses iconTint for MaterialButton
     override fun onRepeatChanged(isRepeat: Boolean) {
         updateRepeatButtonVisual(isRepeat)
         Log.d(TAG, "Repeat changed: $isRepeat")
@@ -317,22 +317,22 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Setup helpers
+    // Setup helpers - UPDATED for Material Design components
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun findViews() {
-        buttonPlay        = findViewById(R.id.playButton)
-        buttonNext        = findViewById(R.id.buttonNext)
-        buttonPrevious    = findViewById(R.id.buttonPrevious)
-        buttonFastForward = findViewById(R.id.buttonFastForward)
-        buttonFastRewind  = findViewById(R.id.buttonFastRewind)
-        buttonRepeat      = findViewById(R.id.buttonRepeat)
-        txtSName          = findViewById(R.id.txtSN)
-        txtSStart         = findViewById(R.id.txtStart)
-        txtSStop          = findViewById(R.id.txtStop)
-        seekbar           = findViewById(R.id.seekbar)
-        visualizer        = findViewById(R.id.blast)
-        imageView         = findViewById(R.id.imageView)
+        buttonPlay        = findViewById<MaterialButton>(R.id.playButton)
+        buttonNext        = findViewById<MaterialButton>(R.id.buttonNext)
+        buttonPrevious    = findViewById<MaterialButton>(R.id.buttonPrevious)
+        buttonFastForward = findViewById<MaterialButton>(R.id.buttonFastForward)
+        buttonFastRewind  = findViewById<MaterialButton>(R.id.buttonFastRewind)
+        buttonRepeat      = findViewById<MaterialButton>(R.id.buttonRepeat)
+        txtSName          = findViewById<MaterialTextView>(R.id.txtSN)
+        txtSStart         = findViewById<MaterialTextView>(R.id.txtStart)
+        txtSStop          = findViewById<MaterialTextView>(R.id.txtStop)
+        seekbar           = findViewById<SeekBar>(R.id.seekbar)
+        visualizer        = findViewById<BarVisualizerView>(R.id.blast)
+        imageView         = findViewById<AppCompatImageView>(R.id.imageView)
     }
 
     private fun readIntent() {
@@ -427,15 +427,18 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         txtSStop.text    = createTime(service.getDuration())
         txtSStart.text   = createTime(service.getCurrentPosition())
         onPlaybackStateChanged(service.isPlaying())
+
+        // ADDED: Sync repeat button visual
         updateRepeatButtonVisual(service.isRepeat())
 
         Log.d(TAG, "Synced UI state - displaying title: '$displayTitle' for position $pos")
     }
 
+    // UPDATED: Now uses iconTint for MaterialButton
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
-        buttonRepeat.setBackgroundResource(
-            if (isRepeat) R.drawable.baseline_repeat_24 else R.drawable.outline_repeat_24
-        )
+        val tintColor = if (isRepeat) R.color.red else R.color.white
+        buttonRepeat.iconTint = resources.getColorStateList(tintColor, theme)
+        Log.d(TAG, "Repeat button tint updated: $isRepeat")
     }
 
     private fun startSeekbarUpdater() {
