@@ -29,12 +29,12 @@ import java.io.File
 /**
  * MusicPlayerService
  *
- * A foreground Service that owns the MediaPlayer and exposes playback controls
- * to bound clients (MusicPlayerActivity and VideoPlayerActivity) through the ServiceBinder.
- *
  * FIXED VERSION: Handles clean stop-and-start transitions between different media types.
  * No more seamless transitions - current media fully stops, activity transitions occur,
  * and new media starts fresh.
+ *
+ * TRANSITION FIX: Modified handlePositionChange() to defer audio playback when activity
+ * transitions are needed, preventing the video→audio skipping issue.
  *
  * The notification shows persistent media controls (previous, play/pause, next, repeat)
  * that work even when the app is in the background or the screen is off.
@@ -85,6 +85,9 @@ class MusicPlayerService : Service() {
     private var mediaTypes: ArrayList<String> = arrayListOf()
     private var currentPosition: Int = 0
     private var isRepeatOn: Boolean = false
+
+    /** Track which activity context we're currently in to handle transitions properly */
+    private var currentActivityContext: String = "unknown" // "audio", "video", or "unknown"
 
     /** Callback interface so the bound Activity can react to service-driven events. */
     interface PlayerListener {
@@ -181,6 +184,7 @@ class MusicPlayerService : Service() {
 
         if (startingMediaType == "audio") {
             // Start playing audio immediately
+            currentActivityContext = "audio"
             playCurrentAudio()
         } else {
             // Starting position is video - notify activity to switch
@@ -202,6 +206,9 @@ class MusicPlayerService : Service() {
     ) {
         Log.d(TAG, "initPlaylistWithoutAutoplay called")
         setupPlaylistData(songList, startPosition, songTitles, songArtists, mediaTypes)
+
+        // This is called by VideoPlayerActivity, so set video context
+        currentActivityContext = "video"
 
         // Just notify listeners of the current song without starting playback
         val songTitle = if (currentPosition < this.songTitles.size) {
@@ -249,8 +256,8 @@ class MusicPlayerService : Service() {
     }
 
     /**
-     * Handle what happens when position changes.
-     * Either starts audio playback or requests activity switch for video.
+     * FIXED: Handle what happens when position changes.
+     * Uses activity context tracking to properly determine when to transition vs play.
      */
     private fun handlePositionChange() {
         val mediaType = getCurrentMediaType()
@@ -264,11 +271,19 @@ class MusicPlayerService : Service() {
         }
 
         if (mediaType == "audio") {
-            // This is audio - start playing it in this service
-            Log.d(TAG, "Playing audio at position $currentPosition")
-            playCurrentAudio()
+            // Check if we're already in audio context or need to transition from video
+            if (currentActivityContext == "audio") {
+                // We're already in audio context (MusicPlayerActivity), start playing normally
+                Log.d(TAG, "Playing audio at position $currentPosition (in audio context)")
+                playCurrentAudio()
+            } else {
+                // We're in video context, need to transition to MusicPlayerActivity
+                Log.d(TAG, "Transitioning from video to audio context - requesting activity switch")
+                notifyActivitySwitchRequest()
+            }
         } else {
-            // This is video - request activity switch
+            // This is video - update context and request activity switch
+            currentActivityContext = "video"
             Log.d(TAG, "Requesting activity switch to video player")
             notifyActivitySwitchRequest()
         }
@@ -307,6 +322,9 @@ class MusicPlayerService : Service() {
         }
 
         Log.d(TAG, "Starting audio playback at position $currentPosition")
+
+        // Set audio context when starting audio playback
+        currentActivityContext = "audio"
 
         // Make sure any previous player is released
         releasePlayer()
@@ -564,6 +582,14 @@ class MusicPlayerService : Service() {
     }
 
     /**
+     * Set the current activity context for proper transition handling.
+     */
+    fun setActivityContext(context: String) {
+        Log.d(TAG, "Activity context set to: $context")
+        currentActivityContext = context
+    }
+
+    /**
      * Extract a proper song title from a File object.
      * Handles both local files and Firebase Storage placeholder files.
      */
@@ -737,9 +763,8 @@ class MusicPlayerService : Service() {
                 CHANNEL_ID,
                 "Music Player",
                 NotificationManager.IMPORTANCE_LOW  // LOW = no sound, keeps it silent
-            ).apply {
-                description = "Shows playback controls for the music player"
-            }
+            )
+            channel.description = "Shows playback controls for the music player"
             getSystemService(NotificationManager::class.java)
                 ?.createNotificationChannel(channel)
         }
