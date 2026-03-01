@@ -51,7 +51,7 @@ class EditPlaylistDialog : DialogFragment() {
             playlistId: String,
             playlistName: String,
             mediaItems: List<MediaItem>,
-            availableTags: List<String>, // This should be current global tags from PlaylistActivity
+            availableTags: List<String>,
             onPlaylistUpdated: (() -> Unit)? = null
         ): EditPlaylistDialog {
             val fragment = EditPlaylistDialog()
@@ -59,9 +59,18 @@ class EditPlaylistDialog : DialogFragment() {
             args.putString("PLAYLIST_ID", playlistId)
             args.putString("PLAYLIST_NAME", playlistName)
             fragment.arguments = args
-            fragment.originalMediaItems.addAll(mediaItems)
-            fragment.displayedItems.addAll(mediaItems) // Start with original items
-            fragment.availableTags = availableTags.toList() // Ensure we have a copy of current global tags
+
+            // FIXED: Sort media items by entry order (createdAt) before adding to dialog
+            val sortedMediaItems = mediaItems.sortedBy { item ->
+                when (item) {
+                    is MediaItem.SongItem -> item.song.createdAt?.toDate()?.time ?: 0L
+                    is MediaItem.VideoItem -> item.video.createdAt?.toDate()?.time ?: 0L
+                }
+            }
+
+            fragment.originalMediaItems.addAll(sortedMediaItems)
+            fragment.displayedItems.addAll(sortedMediaItems) // Start with sorted items
+            fragment.availableTags = availableTags.toList()
             fragment.onPlaylistUpdated = onPlaylistUpdated
             return fragment
         }
