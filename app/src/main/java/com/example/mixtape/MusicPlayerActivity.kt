@@ -427,15 +427,17 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         txtSStop.text    = createTime(service.getDuration())
         txtSStart.text   = createTime(service.getCurrentPosition())
         onPlaybackStateChanged(service.isPlaying())
+
+        // ADDED: Sync repeat button visual
         updateRepeatButtonVisual(service.isRepeat())
 
         Log.d(TAG, "Synced UI state - displaying title: '$displayTitle' for position $pos")
     }
 
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
-        buttonRepeat.setBackgroundResource(
-            if (isRepeat) R.drawable.baseline_repeat_24 else R.drawable.outline_repeat_24
-        )
+        buttonRepeat.setBackgroundResource(R.drawable.baseline_repeat_24)
+        val tintColor = if (isRepeat) R.color.red else R.color.white
+        buttonRepeat.backgroundTintList = resources.getColorStateList(tintColor, theme)
     }
 
     private fun startSeekbarUpdater() {

@@ -639,6 +639,8 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
 
         txtVideoName.text = displayTitle
+
+        // ADDED: Sync repeat button visual
         updateRepeatButtonVisual(service.isRepeat())
 
         // Position updates will come from onVideoPositionUpdate callback
@@ -650,9 +652,9 @@ class VideoPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     }
 
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
-        buttonRepeat.setImageResource(
-            if (isRepeat) R.drawable.baseline_repeat_24 else R.drawable.outline_repeat_24
-        )
+        buttonRepeat.setImageResource(R.drawable.baseline_repeat_24)
+        val tintColor = if (isRepeat) R.color.red else R.color.white
+        buttonRepeat.imageTintList = resources.getColorStateList(tintColor, theme)
     }
 
     private fun createTime(duration: Int): String {
