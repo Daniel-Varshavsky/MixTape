@@ -308,6 +308,14 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         // If mediaType is "audio", we should already be in the correct activity
     }
 
+    /**
+     * NEW: Video position updates (not used in MusicPlayerActivity but required by interface)
+     */
+    override fun onVideoPositionUpdate(position: Int, duration: Int) {
+        // Not used in MusicPlayerActivity - only VideoPlayerActivity needs this
+        // But required by PlayerListener interface
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Setup helpers
     // ─────────────────────────────────────────────────────────────────────────

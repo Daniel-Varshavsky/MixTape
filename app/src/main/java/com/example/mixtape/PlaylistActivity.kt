@@ -144,6 +144,12 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
         Log.d("PlaylistActivity", "Activity switch requested but not needed in PlaylistActivity")
     }
 
+    override fun onVideoPositionUpdate(position: Int, duration: Int) {
+        // PlaylistActivity doesn't need video position updates
+        // This is only used by VideoPlayerActivity for synchronization
+        // Empty implementation satisfies the interface requirement
+    }
+
     // ── Init helpers ──────────────────────────────────────────────────────────
 
     private fun initViews() {
