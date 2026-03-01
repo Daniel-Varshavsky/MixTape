@@ -7,31 +7,24 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.media.audiofx.Visualizer
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 
 /**
  * A drop-in bar visualizer that uses Android's built-in [Visualizer] API —
  * no third-party library required.
  *
- * Usage in XML (replace the old com.gauravk… entry):
- *
- *   <com.example.mixtape.BarVisualizerView
- *       android:id="@+id/blast"
- *       android:layout_width="match_parent"
- *       android:layout_height="70dp"
- *       android:layout_alignParentBottom="true" />
- *
- * Usage in code (same as before, just call setAudioSessionId):
- *
- *   visualizer.setAudioSessionId(musicService.getAudioSessionId())
- *   // …and later:
- *   visualizer.release()
+ * Updated with better error handling for security exceptions and permission issues.
  */
 class BarVisualizerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
+
+    companion object {
+        private const val TAG = "BarVisualizerView"
+    }
 
     // ── Tuneable appearance constants ─────────────────────────────────────────
     private val barColor  = Color.parseColor("#FF362E")
@@ -59,28 +52,58 @@ class BarVisualizerView @JvmOverloads constructor(
      */
     fun setAudioSessionId(sessionId: Int) {
         release()
-        if (sessionId == -1) return
+        if (sessionId == -1) {
+            Log.w(TAG, "Invalid audio session ID: $sessionId")
+            return
+        }
 
         try {
+            Log.d(TAG, "Attempting to create Visualizer with session ID: $sessionId")
+
             visualizer = Visualizer(sessionId).apply {
-                captureSize = Visualizer.getCaptureSizeRange()[1]
+                // Check if Visualizer is supported
+                val captureSizeRange = Visualizer.getCaptureSizeRange()
+                if (captureSizeRange.isEmpty()) {
+                    Log.e(TAG, "Visualizer not supported - no capture size range")
+                    return@setAudioSessionId
+                }
+
+                captureSize = captureSizeRange[1]
+                Log.d(TAG, "Capture size set to: $captureSize")
+
                 setDataCaptureListener(
                     object : Visualizer.OnDataCaptureListener {
-                        override fun onWaveFormDataCapture(v: Visualizer, waveform: ByteArray, sr: Int) {}
+                        override fun onWaveFormDataCapture(v: Visualizer, waveform: ByteArray, sr: Int) {
+                            // Not used
+                        }
+
                         override fun onFftDataCapture(v: Visualizer, fft: ByteArray, sr: Int) {
-                            fftBytes = fft.copyOf()
-                            postInvalidateOnAnimation()
+                            try {
+                                fftBytes = fft.copyOf()
+                                post { invalidate() } // Update UI on main thread
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Error in FFT data capture: ${e.message}")
+                            }
                         }
                     },
                     Visualizer.getMaxCaptureRate() / 2,
                     /* waveform= */ false,
                     /* fft=      */ true
                 )
+
                 enabled = true
+                Log.d(TAG, "Visualizer enabled successfully")
             }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception creating Visualizer - check RECORD_AUDIO permission: ${e.message}")
+        } catch (e: UnsupportedOperationException) {
+            Log.e(TAG, "Visualizer not supported on this device: ${e.message}")
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Illegal state when creating Visualizer: ${e.message}")
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "Runtime exception creating Visualizer: ${e.message}")
         } catch (e: Exception) {
-            // Gracefully degrade — visualizer is cosmetic only
-            e.printStackTrace()
+            Log.e(TAG, "Unexpected error creating Visualizer: ${e.message}", e)
         }
     }
 
@@ -88,12 +111,20 @@ class BarVisualizerView @JvmOverloads constructor(
      * Release the underlying [Visualizer]. Call from Activity.onDestroy().
      */
     fun release() {
-        runCatching {
-            visualizer?.enabled = false
-            visualizer?.release()
+        try {
+            visualizer?.let { viz ->
+                if (viz.enabled) {
+                    viz.enabled = false
+                }
+                viz.release()
+                Log.d(TAG, "Visualizer released successfully")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error releasing Visualizer: ${e.message}")
+        } finally {
+            visualizer = null
+            fftBytes = ByteArray(0)
         }
-        visualizer = null
-        fftBytes   = ByteArray(0)
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────

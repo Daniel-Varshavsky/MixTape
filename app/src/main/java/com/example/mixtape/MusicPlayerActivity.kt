@@ -1,20 +1,25 @@
 package com.example.mixtape
 
+import android.Manifest
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.*
+import android.content.pm.PackageManager
 import android.graphics.PorterDuff
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import com.example.mixtape.service.MusicPlayerService
@@ -25,17 +30,28 @@ import java.io.File
 /**
  * MusicPlayerActivity
  *
+ * FIXED VERSION: Handles clean stop-and-start transitions between audio and video.
+ * No more complex seamless transition logic - just clean handoffs.
+ *
  * Responsibilities:
  *  - Bind to MusicPlayerService and delegate all playback calls to it.
  *  - Update the UI in response to service callbacks (PlayerListener).
- *  - Handle seekbar dragging and time labels.
+ *  - Handle activity switches when video content is encountered.
  *  - Show/hide the repeat button state.
  *
- * The activity no longer owns a MediaPlayer or posts notifications itself —
- * all of that lives in MusicPlayerService.
+ * The activity no longer tries to handle mixed media seamlessly -
+ * when video is encountered, it cleanly transitions to VideoPlayerActivity.
+ *
+ * FIX APPLIED: The seekbarRunnable now updates both txtSStart AND txtSStop continuously,
+ * ensuring the duration display is always up-to-date, similar to VideoPlayerActivity.
  */
 @UnstableApi
 class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
+
+    companion object {
+        private const val TAG = "MusicPlayerActivity"
+        private const val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1001
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Views
@@ -67,19 +83,31 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
             musicService = b.getService()
             isBound = true
 
-            musicService?.setListener(this@MusicPlayerActivity)
+            musicService?.addListener(this@MusicPlayerActivity)
 
-            // Hand the playlist to the service only on the very first connect.
-            // If the service is already playing (e.g. activity re-created after rotation),
-            // we just sync our UI to the current service state instead.
-            if (musicService?.isPlaying() == false && !servicePreviouslyRunning) {
-                musicService?.initPlaylist(mySongs, startPosition)
-            } else {
+            // Check if service was already running (e.g. from previous activity)
+            if (servicePreviouslyRunning) {
+                Log.d(TAG, "Service was already running, syncing UI state")
+                // Set audio context since we're in MusicPlayerActivity
+                musicService?.setActivityContext("audio")
                 syncUiToServiceState()
+                // FIXED: If we're transitioning from video to audio, start playback
+                if (musicService?.getCurrentMediaType() == "audio") {
+                    Log.d(TAG, "Detected transition from video, starting audio playback")
+                    musicService?.playCurrentAudio()
+                }
+            } else {
+                // Initialize playlist and start playing
+                Log.d(TAG, "Initializing fresh playlist")
+                musicService?.initPlaylist(mySongs, startPosition, songTitles, songArtists, mediaTypes)
             }
 
             startSeekbarUpdater()
-            attachVisualizer()
+
+            // Attach visualizer after a delay to ensure MediaPlayer is ready
+            handler.postDelayed({
+                attachVisualizer()
+            }, 500)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -93,24 +121,46 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     // ─────────────────────────────────────────────────────────────────────────
 
     private lateinit var mySongs: ArrayList<File>
+    private var songTitles: ArrayList<String>? = null
+    private var songArtists: ArrayList<String>? = null
+    private var mediaTypes: ArrayList<String>? = null
     private var startPosition: Int = 0
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Seekbar / time handler
+    // Seekbar / time handler - FIXED VERSION
     // ─────────────────────────────────────────────────────────────────────────
 
     private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * FIXED: Now updates both txtSStart AND txtSStop, but safely checks MediaPlayer state
+     * to prevent triggering errors that cause songs to skip.
+     */
     private val seekbarRunnable = object : Runnable {
         override fun run() {
             val service = musicService ?: return
-            seekbar.progress = service.getCurrentPosition()
-            txtSStart.text = createTime(service.getCurrentPosition())
+            val currentPos = service.getCurrentPosition()
+
+            // Only get duration if the service indicates it's playing (MediaPlayer is ready)
+            val duration = if (service.isPlaying() || currentPos > 0) {
+                service.getDuration()
+            } else {
+                // MediaPlayer not ready yet, don't call getDuration()
+                0
+            }
+
+            seekbar.progress = currentPos
+            if (duration > 0) {
+                seekbar.max = duration
+                txtSStop.text = createTime(duration)
+            }
+            txtSStart.text = createTime(currentPos)
+
             handler.postDelayed(this, 500)
         }
     }
 
-    // Flag that survives configuration changes — tells us the service is already
-    // running so we don't restart playback from scratch.
+    // Flag that survives configuration changes
     private var servicePreviouslyRunning = false
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -128,15 +178,51 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         setupSeekbar()
         setupButtons()
 
+        // Request RECORD_AUDIO permission for visualizer
+        requestAudioPermissionIfNeeded()
+
         // Start the service (keeps it alive past unbind) and bind to it
         val serviceIntent = Intent(this, MusicPlayerService::class.java)
         startService(serviceIntent)
 
-        // servicePreviouslyRunning = true if the activity is being re-created
-        // (e.g. rotation) while the service is already playing.
         servicePreviouslyRunning = savedInstanceState?.getBoolean("service_running", false) ?: false
 
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    private fun requestAudioPermissionIfNeeded() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED) {
+
+            Log.d(TAG, "Requesting RECORD_AUDIO permission")
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                RECORD_AUDIO_PERMISSION_REQUEST_CODE)
+        } else {
+            Log.d(TAG, "RECORD_AUDIO permission already granted")
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            RECORD_AUDIO_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "RECORD_AUDIO permission granted")
+                    if (isBound) {
+                        handler.postDelayed({ attachVisualizer() }, 500)
+                    }
+                } else {
+                    Log.w(TAG, "RECORD_AUDIO permission denied - visualizer will not work")
+                }
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -149,7 +235,9 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         if (isBound) {
             startSeekbarUpdater()
             syncUiToServiceState()
-            attachVisualizer()
+            handler.postDelayed({
+                attachVisualizer()
+            }, 200)
         }
     }
 
@@ -161,7 +249,7 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        musicService?.setListener(null)
+        musicService?.removeListener(this)
         if (isBound) {
             unbindService(serviceConnection)
             isBound = false
@@ -180,21 +268,52 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     // ─────────────────────────────────────────────────────────────────────────
 
     override fun onSongChanged(position: Int, songName: String) {
+        Log.d(TAG, "Song changed to position $position: $songName")
+
+        // Update UI
         txtSName.text = songName
         txtSStop.text = createTime(musicService?.getDuration() ?: 0)
-        seekbar.max  = musicService?.getDuration() ?: 0
+        seekbar.max = musicService?.getDuration() ?: 0
         seekbar.progress = 0
         startAnimation(imageView)
+
+        // Re-attach visualizer when song changes to get new audio session
+        handler.postDelayed({
+            attachVisualizer()
+        }, 300)
     }
 
     override fun onPlaybackStateChanged(isPlaying: Boolean) {
         buttonPlay.setBackgroundResource(
             if (isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24
         )
+        Log.d(TAG, "Playback state changed: ${if (isPlaying) "playing" else "paused"}")
     }
 
     override fun onRepeatChanged(isRepeat: Boolean) {
         updateRepeatButtonVisual(isRepeat)
+        Log.d(TAG, "Repeat changed: $isRepeat")
+    }
+
+    /**
+     * NEW: Handle request to switch activities when video content is encountered.
+     */
+    override fun onRequestActivitySwitch(position: Int, mediaType: String) {
+        Log.d(TAG, "Activity switch requested for $mediaType at position $position")
+
+        if (mediaType == "video") {
+            // Transition to VideoPlayerActivity
+            transitionToVideoPlayer(position)
+        }
+        // If mediaType is "audio", we should already be in the correct activity
+    }
+
+    /**
+     * NEW: Video position updates (not used in MusicPlayerActivity but required by interface)
+     */
+    override fun onVideoPositionUpdate(position: Int, duration: Int) {
+        // Not used in MusicPlayerActivity - only VideoPlayerActivity needs this
+        // But required by PlayerListener interface
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -218,16 +337,26 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
 
     private fun readIntent() {
         val bundle = intent.extras!!
-        // File is not Parcelable, so the playlist is passed as absolute path strings
-        // and reconstructed as File objects here.
         val paths = bundle.getStringArrayList("songs")!!
         mySongs = ArrayList(paths.map { File(it) })
         startPosition = bundle.getInt("pos", 0)
 
-        // Pre-populate the song name immediately so there's no blank flash
-        // before the service connects.
-        txtSName.text = intent.getStringExtra("songName") ?: mySongs[startPosition].name
+        // Get song titles, artists, and media types if provided
+        songTitles = bundle.getStringArrayList("songTitles")
+        songArtists = bundle.getStringArrayList("songArtists")
+        mediaTypes = bundle.getStringArrayList("mediaTypes")
+
+        // Pre-populate the song name immediately
+        val displayTitle = if (!songTitles.isNullOrEmpty() && startPosition < songTitles!!.size) {
+            songTitles!![startPosition]
+        } else {
+            intent.getStringExtra("songName") ?: mySongs[startPosition].name
+        }
+
+        txtSName.text = displayTitle
         txtSName.isSelected = true  // enables marquee scrolling
+
+        Log.d(TAG, "Intent read: ${mySongs.size} media items, starting at position $startPosition")
     }
 
     private fun setupSeekbar() {
@@ -240,7 +369,6 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {}
             override fun onStartTrackingTouch(bar: SeekBar) {
-                // Pause the auto-updater while the user is scrubbing
                 handler.removeCallbacks(seekbarRunnable)
             }
             override fun onStopTrackingTouch(bar: SeekBar) {
@@ -264,13 +392,11 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         }
 
         buttonFastForward.setOnClickListener {
-            val service = musicService ?: return@setOnClickListener
-            service.seekTo(service.getCurrentPosition() + 10_000)
+            musicService?.fastForward()
         }
 
         buttonFastRewind.setOnClickListener {
-            val service = musicService ?: return@setOnClickListener
-            service.seekTo((service.getCurrentPosition() - 10_000).coerceAtLeast(0))
+            musicService?.fastRewind()
         }
 
         buttonRepeat.setOnClickListener {
@@ -286,15 +412,24 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     private fun syncUiToServiceState() {
         val service = musicService ?: return
         val pos = service.getSongPosition()
-        if (pos < mySongs.size) {
-            txtSName.text = mySongs[pos].name
+
+        val displayTitle = if (!songTitles.isNullOrEmpty() && pos < songTitles!!.size) {
+            songTitles!![pos]
+        } else if (pos < mySongs.size) {
+            mySongs[pos].nameWithoutExtension
+        } else {
+            "Unknown Song"
         }
+
+        txtSName.text = displayTitle
         seekbar.max      = service.getDuration()
         seekbar.progress = service.getCurrentPosition()
         txtSStop.text    = createTime(service.getDuration())
         txtSStart.text   = createTime(service.getCurrentPosition())
         onPlaybackStateChanged(service.isPlaying())
         updateRepeatButtonVisual(service.isRepeat())
+
+        Log.d(TAG, "Synced UI state - displaying title: '$displayTitle' for position $pos")
     }
 
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
@@ -308,14 +443,31 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         handler.post(seekbarRunnable)
     }
 
-    /**
-     * Attaches [BarVisualizerView] to the service's MediaPlayer audio session.
-     * Safe to call multiple times — the view releases its previous Visualizer first.
-     * Requires RECORD_AUDIO permission (request at runtime before calling this).
-     */
     private fun attachVisualizer() {
-        val sessionId = musicService?.getAudioSessionId() ?: -1
-        visualizer.setAudioSessionId(sessionId)
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+                PackageManager.PERMISSION_GRANTED) {
+                Log.w(TAG, "RECORD_AUDIO permission not granted - visualizer disabled")
+                return
+            }
+
+            val sessionId = musicService?.getAudioSessionId() ?: -1
+            Log.d(TAG, "Attaching visualizer with audio session ID: $sessionId")
+
+            if (sessionId != -1 && musicService?.isPlaying() == true) {
+                visualizer.setAudioSessionId(sessionId)
+                Log.d(TAG, "Visualizer attached successfully")
+            } else {
+                Log.w(TAG, "Cannot attach visualizer - invalid session ID or not playing")
+                if (sessionId != -1) {
+                    handler.postDelayed({
+                        attachVisualizer()
+                    }, 1000)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error attaching visualizer: ${e.message}", e)
+        }
     }
 
     fun startAnimation(view: View) {
@@ -332,5 +484,38 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
         val min = duration / 1000 / 60
         val sec = duration / 1000 % 60
         return "$min:${if (sec < 10) "0$sec" else "$sec"}"
+    }
+
+    /**
+     * Clean transition to VideoPlayerActivity when video content is encountered.
+     */
+    private fun transitionToVideoPlayer(position: Int) {
+        try {
+            Log.d(TAG, "Creating intent for VideoPlayerActivity transition...")
+
+            val intent = Intent(this, VideoPlayerActivity::class.java).apply {
+                val filePaths = mySongs.map { it.absolutePath }
+                putExtra("videos", ArrayList(filePaths)) // VideoPlayerActivity expects "videos"
+                putExtra("videoTitles", songTitles)
+                putExtra("videoArtists", songArtists)
+                putExtra("mediaTypes", mediaTypes)
+                putExtra("pos", position) // Start from the current position
+                putExtra("videoName", if (!songTitles.isNullOrEmpty() && position < songTitles!!.size) {
+                    songTitles!![position]
+                } else {
+                    "Video ${position + 1}"
+                })
+            }
+
+            Log.d(TAG, "Starting VideoPlayerActivity at position $position")
+            startActivity(intent)
+
+            // Close this activity so the user doesn't return to audio player when pressing back
+            finish()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error transitioning to video player: ${e.message}", e)
+            Toast.makeText(this, "Error opening video player", Toast.LENGTH_SHORT).show()
+        }
     }
 }
