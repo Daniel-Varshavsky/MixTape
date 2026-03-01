@@ -41,6 +41,9 @@ import java.io.File
  *
  * The activity no longer tries to handle mixed media seamlessly -
  * when video is encountered, it cleanly transitions to VideoPlayerActivity.
+ *
+ * FIX APPLIED: The seekbarRunnable now updates both txtSStart AND txtSStop continuously,
+ * ensuring the duration display is always up-to-date, similar to VideoPlayerActivity.
  */
 @UnstableApi
 class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
@@ -117,15 +120,35 @@ class MusicPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListen
     private var startPosition: Int = 0
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Seekbar / time handler
+    // Seekbar / time handler - FIXED VERSION
     // ─────────────────────────────────────────────────────────────────────────
 
     private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * FIXED: Now updates both txtSStart AND txtSStop, but safely checks MediaPlayer state
+     * to prevent triggering errors that cause songs to skip.
+     */
     private val seekbarRunnable = object : Runnable {
         override fun run() {
             val service = musicService ?: return
-            seekbar.progress = service.getCurrentPosition()
-            txtSStart.text = createTime(service.getCurrentPosition())
+            val currentPos = service.getCurrentPosition()
+
+            // Only get duration if the service indicates it's playing (MediaPlayer is ready)
+            val duration = if (service.isPlaying() || currentPos > 0) {
+                service.getDuration()
+            } else {
+                // MediaPlayer not ready yet, don't call getDuration()
+                0
+            }
+
+            seekbar.progress = currentPos
+            if (duration > 0) {
+                seekbar.max = duration
+                txtSStop.text = createTime(duration)
+            }
+            txtSStart.text = createTime(currentPos)
+
             handler.postDelayed(this, 500)
         }
     }
