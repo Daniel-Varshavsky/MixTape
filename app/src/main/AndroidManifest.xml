@@ -90,8 +90,11 @@
             android:name=".VideoPlayerActivity"
             android:exported="false"
             android:screenOrientation="sensor"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:configChanges="orientation|screenSize|keyboardHidden" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".PlaylistActivity" />
+        </activity>
 
         <!--
             MusicPlayerService — foregroundServiceType="mediaPlayback" is required:
