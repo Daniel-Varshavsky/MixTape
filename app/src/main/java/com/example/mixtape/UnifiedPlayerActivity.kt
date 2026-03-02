@@ -34,9 +34,11 @@ import com.example.mixtape.ui.BarVisualizerView
 import java.io.File
 import kotlin.math.abs
 
-// UPDATED IMPORTS for Material Design components
+// UPDATED IMPORTS for Material Design components and ConstraintLayout
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.LinearLayoutCompat
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import com.google.android.material.textview.MaterialTextView
 import com.google.android.material.button.MaterialButton
 
@@ -74,7 +76,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private lateinit var videoSeekbar: SeekBar
     private lateinit var videoTimeStart: MaterialTextView
     private lateinit var videoTimeStop: MaterialTextView
-    private lateinit var videoButtonsContainer: RelativeLayout
+    private lateinit var videoButtonsContainer: ConstraintLayout
 
     // Shared button references
     private lateinit var buttonPlay: MaterialButton
@@ -517,42 +519,40 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     }
 
     private fun updateVideoButtonLayout(orientation: Int) {
-        val repeatBtn = findViewById<MaterialButton>(R.id.videoButtonRepeat) ?: return
-        val prevBtn = findViewById<MaterialButton>(R.id.videoButtonPrevious) ?: return
-        val rewindBtn = findViewById<MaterialButton>(R.id.videoButtonFastRewind) ?: return
-        val playBtn = findViewById<MaterialButton>(R.id.videoButtonPlay) ?: return
-        
-        val params = repeatBtn.layoutParams as RelativeLayout.LayoutParams
-        
-        // Reset rules first
-        params.removeRule(RelativeLayout.START_OF)
-        params.removeRule(RelativeLayout.BELOW)
-        params.removeRule(RelativeLayout.END_OF)
-        params.removeRule(RelativeLayout.CENTER_VERTICAL)
-        
+        val constraintSet = ConstraintSet()
+        constraintSet.clone(videoButtonsContainer)
+
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-            // PORTRAIT: Below Rewind, Centered between Rewind and Play
-            params.addRule(RelativeLayout.BELOW, R.id.videoButtonFastRewind)
-            params.addRule(RelativeLayout.END_OF, R.id.videoButtonFastRewind)
-            params.addRule(RelativeLayout.START_OF, R.id.videoButtonPlay)
+            // PORTRAIT: Position Repeat below Rewind and Play
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.END)
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
+
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.START, R.id.videoButtonFastRewind, ConstraintSet.END)
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.END, R.id.videoButtonPlay, ConstraintSet.START)
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
             
-            // Adjust margins for portrait spacing
-            params.topMargin = (12 * resources.displayMetrics.density).toInt()
-            params.marginEnd = (-25 * resources.displayMetrics.density).toInt()
+            // Re-apply vertical centering or margins if needed
+            constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, (12 * resources.displayMetrics.density).toInt())
             
-            Log.d(TAG, "Video buttons set to Portrait layout (Repeat below Rewind)")
+            Log.d(TAG, "Video buttons set to Portrait layout")
         } else {
-            // LANDSCAPE: Keep horizontal line
-            params.addRule(RelativeLayout.START_OF, R.id.videoButtonPrevious)
-            params.addRule(RelativeLayout.CENTER_VERTICAL)
+            // LANDSCAPE: Restore horizontal row (Repeat to the left of Previous)
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.START)
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
+            constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
+
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.END, R.id.videoButtonPrevious, ConstraintSet.START)
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.TOP)
+            constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.BOTTOM, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
             
-            params.topMargin = 0
-            params.marginEnd = (8 * resources.displayMetrics.density).toInt()
-            
-            Log.d(TAG, "Video buttons set to Landscape layout (Horizontal row)")
+            constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.END, (8 * resources.displayMetrics.density).toInt())
+            constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, 0)
+
+            Log.d(TAG, "Video buttons set to Landscape layout")
         }
-        
-        repeatBtn.layoutParams = params
+
+        constraintSet.applyTo(videoButtonsContainer)
     }
 
     private fun toggleFullscreen() {

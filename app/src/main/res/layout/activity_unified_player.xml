@@ -114,7 +114,7 @@
                 android:layout_height="match_parent">
 
                 <!-- AUDIO CONTROL BUTTONS -->
-                
+
                 <!-- Previous Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonPrevious"
@@ -345,8 +345,8 @@
 
                 </RelativeLayout>
 
-                <!-- Video Control Buttons (Relative Layout for Dynamic Positioning) -->
-                <RelativeLayout
+                <!-- Video Control Buttons (Constraint Layout for Dynamic Positioning) -->
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/videoButtonsContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -357,7 +357,6 @@
                         android:id="@+id/videoButtonPlay"
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        android:layout_centerHorizontal="true"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_play_arrow_24"
                         app:iconTint="@color/white"
@@ -368,15 +367,16 @@
                         app:strokeWidth="1dp"
                         app:cornerRadius="32dp"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Play/Pause" />
+                        android:contentDescription="Play/Pause"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent" />
 
                     <!-- Video Fast Rewind Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonFastRewind"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_toStartOf="@id/videoButtonPlay"
-                        android:layout_centerVertical="true"
                         android:layout_marginEnd="16dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_fast_rewind_24"
@@ -385,15 +385,16 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Rewind 10 seconds" />
+                        android:contentDescription="Rewind 10 seconds"
+                        app:layout_constraintEnd_toStartOf="@id/videoButtonPlay"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
                     <!-- Video Previous Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonPrevious"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_toStartOf="@id/videoButtonFastRewind"
-                        android:layout_centerVertical="true"
                         android:layout_marginEnd="8dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_skip_previous_24"
@@ -402,15 +403,16 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Previous video" />
+                        android:contentDescription="Previous video"
+                        app:layout_constraintEnd_toStartOf="@id/videoButtonFastRewind"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
                     <!-- Video Fast Forward Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonFastForward"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_toEndOf="@id/videoButtonPlay"
-                        android:layout_centerVertical="true"
                         android:layout_marginStart="16dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_fast_forward_24"
@@ -419,15 +421,16 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Forward 10 seconds" />
+                        android:contentDescription="Forward 10 seconds"
+                        app:layout_constraintStart_toEndOf="@id/videoButtonPlay"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
                     <!-- Video Next Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonNext"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_toEndOf="@id/videoButtonFastForward"
-                        android:layout_centerVertical="true"
                         android:layout_marginStart="8dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_skip_next_24"
@@ -436,15 +439,16 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Next video" />
+                        android:contentDescription="Next video"
+                        app:layout_constraintStart_toEndOf="@id/videoButtonFastForward"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
-                    <!-- Video Repeat Button (Positioning overridden in code for orientation) -->
+                    <!-- Video Repeat Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonRepeat"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_toStartOf="@id/videoButtonPrevious"
-                        android:layout_centerVertical="true"
                         android:layout_marginEnd="8dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_repeat_24"
@@ -453,9 +457,12 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Toggle repeat" />
+                        android:contentDescription="Toggle repeat"
+                        app:layout_constraintEnd_toStartOf="@id/videoButtonPrevious"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
-                </RelativeLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
