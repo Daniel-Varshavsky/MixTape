@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+    activity_unified_player.xml - COMPLETE SELF-CONTAINED VERSION
+
+    UNIFIED PLAYER LAYOUT - Contains both audio and video player UIs
+    - Audio layout: Traditional music player with visualizer
+    - Video layout: VideoView with overlay controls
+    - Only one is visible at a time based on media type
+    - No external includes - everything is self-contained
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:layoutDirection="ltr"
+    android:textDirection="ltr">
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- AUDIO PLAYER LAYOUT (Default visible) -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/audioPlayerLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:weightSum="10"
+        android:visibility="visible">
+
+        <!-- Top section: album art, song name, seekbar -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="7"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/audioSongTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="20dp"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:padding="10dp"
+                android:singleLine="true"
+                android:text="Song Name"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:textStyle="italic" />
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/audioImageView"
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:layout_marginBottom="8dp"
+                android:src="@drawable/music" />
+
+            <!-- Audio Seekbar -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="60dp">
+
+                <SeekBar
+                    android:id="@+id/audioSeekbar"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentBottom="true"
+                    android:layout_centerInParent="true"
+                    android:layout_marginStart="20dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginEnd="20dp"
+                    android:layout_marginBottom="20dp"
+                    android:thumbTint="@color/red"/>
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/audioTimeStart"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerInParent="true"
+                    android:layout_marginStart="20dp"
+                    android:layout_toStartOf="@+id/audioSeekbar"
+                    android:text="0:00"
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/audioTimeStop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerInParent="true"
+                    android:layout_marginEnd="20dp"
+                    android:layout_toEndOf="@+id/audioSeekbar"
+                    android:text="0:00"
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+
+            </RelativeLayout>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- Bottom section: audio controls + visualizer -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="3">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <!-- AUDIO CONTROL BUTTONS -->
+                <!-- Repeat Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonRepeat"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="15dp"
+                    android:layout_marginEnd="10dp"
+                    android:layout_toStartOf="@+id/buttonPrevious"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_repeat_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="24dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Toggle repeat" />
+
+                <!-- Previous Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonPrevious"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="15dp"
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/buttonFastRewind"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_skip_previous_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="36dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Previous track" />
+
+                <!-- Fast Rewind Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonFastRewind"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="10dp"
+                    android:layout_toStartOf="@+id/buttonPlay"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_fast_rewind_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="32dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Fast rewind" />
+
+                <!-- Play/Pause Button (Central) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonPlay"
+                    android:layout_width="70dp"
+                    android:layout_height="70dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_centerHorizontal="true"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_pause_24"
+                    app:iconTint="@color/red"
+                    app:iconSize="48dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Play/Pause" />
+
+                <!-- Fast Forward Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonFastForward"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_toEndOf="@+id/buttonPlay"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_fast_forward_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="32dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Fast forward" />
+
+                <!-- Next Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonNext"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="15dp"
+                    android:layout_marginStart="15dp"
+                    android:layout_toEndOf="@+id/buttonFastForward"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_skip_next_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="36dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Next track" />
+
+                <!-- Audio Visualizer -->
+                <com.example.mixtape.ui.BarVisualizerView
+                    android:id="@+id/audioVisualizer"
+                    android:layout_width="match_parent"
+                    android:layout_height="70dp"
+                    android:layout_alignParentBottom="true" />
+
+            </RelativeLayout>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- VIDEO PLAYER LAYOUT (Initially hidden) -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <RelativeLayout
+        android:id="@+id/videoPlayerLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <!-- Video View (fullscreen background) -->
+        <VideoView
+            android:id="@+id/videoView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true" />
+
+        <!-- Video Controls Overlay -->
+        <RelativeLayout
+            android:id="@+id/videoControlsOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true">
+
+            <!-- Video Top Controls -->
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:id="@+id/videoTopControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:background="@drawable/gradient_top_overlay"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/videoTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Video Name"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:singleLine="true"
+                    android:layout_marginEnd="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonFullscreen"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_fullscreen_24"
+                    app:iconTint="@color/white"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Toggle fullscreen" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+            <!-- Video Bottom Controls -->
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:id="@+id/videoBottomControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:orientation="vertical"
+                android:background="@drawable/gradient_bottom_overlay"
+                android:padding="16dp">
+
+                <!-- Video Seekbar + Time Labels -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/videoTimeStart"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:text="0:00"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:layout_marginEnd="12dp" />
+
+                    <SeekBar
+                        android:id="@+id/videoSeekbar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:layout_toStartOf="@id/videoTimeStop"
+                        android:layout_toEndOf="@id/videoTimeStart"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="12dp"
+                        android:progressTint="@color/red"
+                        android:thumbTint="@color/red" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/videoTimeStop"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:text="0:00"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:layout_marginStart="12dp" />
+
+                </RelativeLayout>
+
+                <!-- Video Control Buttons (Horizontal Layout) -->
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp">
+
+                    <!-- Video Repeat Button (smaller for video) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonRepeat"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_repeat_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Toggle repeat"
+                        android:layout_marginEnd="8dp" />
+
+                    <!-- Video Previous Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonPrevious"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_skip_previous_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Previous video"
+                        android:layout_marginEnd="8dp" />
+
+                    <!-- Video Fast Rewind Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonFastRewind"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_fast_rewind_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Rewind 10 seconds"
+                        android:layout_marginEnd="16dp" />
+
+                    <!-- Video Play/Pause Button (larger, central) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonPlay"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_play_arrow_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="36dp"
+                        app:iconGravity="textStart"
+                        android:backgroundTint="@color/black"
+                        app:strokeColor="@color/red"
+                        app:strokeWidth="1dp"
+                        app:cornerRadius="32dp"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Play/Pause" />
+
+                    <!-- Video Fast Forward Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonFastForward"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_fast_forward_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Forward 10 seconds"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="8dp" />
+
+                    <!-- Video Next Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonNext"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_skip_next_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Next video"
+                        android:layout_marginStart="8dp" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

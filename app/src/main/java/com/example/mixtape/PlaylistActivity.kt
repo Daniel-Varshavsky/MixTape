@@ -96,7 +96,7 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
         loadPlaylistData()
 
         // Bind to MusicPlayerService if it is already running (user came from
-        // MusicPlayerActivity). BIND_AUTO_CREATE means Android will start the
+        // UnifiedPlayerActivity). BIND_AUTO_CREATE means Android will start the
         // service if it isn't running yet — that's fine here because the service
         // is cheap until initPlaylist() is called.
         bindService(
@@ -135,19 +135,15 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
     }
 
     /**
-     * NEW: Required implementation for PlayerListener interface.
-     * PlaylistActivity doesn't need to handle activity switches since it's the launcher.
+     * Not needed in PlaylistActivity since it launches UnifiedPlayerActivity directly.
      */
     override fun onRequestActivitySwitch(position: Int, mediaType: String) {
-        // PlaylistActivity doesn't need to handle activity switches
-        // It just launches the appropriate player activity directly
         Log.d("PlaylistActivity", "Activity switch requested but not needed in PlaylistActivity")
     }
 
     override fun onVideoPositionUpdate(position: Int, duration: Int) {
         // PlaylistActivity doesn't need video position updates
-        // This is only used by VideoPlayerActivity for synchronization
-        // Empty implementation satisfies the interface requirement
+        // This is only used by UnifiedPlayerActivity for synchronization
     }
 
     // ── Init helpers ──────────────────────────────────────────────────────────
@@ -531,14 +527,8 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
     private fun playMediaItem(item: MediaItem) {
         val clickedPosition = filteredMediaItems.indexOf(item)
         if (clickedPosition != -1) {
-            when (item) {
-                is MediaItem.SongItem -> {
-                    launchMusicPlayer(clickedPosition)
-                }
-                is MediaItem.VideoItem -> {
-                    launchVideoPlayer(clickedPosition)
-                }
-            }
+            // Launch UnifiedPlayerActivity for both audio and video content!
+            launchUnifiedPlayer(clickedPosition)
         } else {
             Toast.makeText(this, "Media not found in current list", Toast.LENGTH_SHORT).show()
         }
@@ -550,34 +540,18 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
             return
         }
 
-        // Find the first playable item and launch the appropriate player
-        val firstItem = filteredMediaItems[0]
-        when (firstItem) {
-            is MediaItem.SongItem -> {
-                val songItems = filteredMediaItems.filterIsInstance<MediaItem.SongItem>()
-                if (songItems.isNotEmpty()) {
-                    launchMusicPlayer(0)
-                } else {
-                    Toast.makeText(this, "No songs to play", Toast.LENGTH_SHORT).show()
-                }
-            }
-            is MediaItem.VideoItem -> {
-                val videoItems = filteredMediaItems.filterIsInstance<MediaItem.VideoItem>()
-                if (videoItems.isNotEmpty()) {
-                    launchVideoPlayer(0)
-                } else {
-                    Toast.makeText(this, "No videos to play", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        // Launch UnifiedPlayerActivity starting from position 0
+        launchUnifiedPlayer(0)
     }
 
     /**
-     * Launch MusicPlayerActivity with the current filtered playlist.
-     * Now handles mixed media - includes all media types for seamless transitions.
+     * UNIFIED: Launch UnifiedPlayerActivity with the current filtered playlist.
+     * Handles both audio and video content seamlessly in a single activity!
      */
-    private fun launchMusicPlayer(startFromPosition: Int) {
+    private fun launchUnifiedPlayer(startFromPosition: Int) {
         try {
+            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with ${filteredMediaItems.size} items, starting at position $startFromPosition")
+
             // Convert ALL media items to files (both songs and videos)
             val allFiles = mutableListOf<File>()
             val allTitles = mutableListOf<String>()
@@ -615,98 +589,26 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
             // Determine the starting position in the combined list
             val actualStartPosition = startFromPosition.coerceIn(0, allFiles.size - 1)
 
-            // Create intent and pass mixed media data
-            val intent = Intent(this, MusicPlayerActivity::class.java).apply {
+            // Create intent for UnifiedPlayerActivity
+            val intent = Intent(this, UnifiedPlayerActivity::class.java).apply {
                 val filePaths = allFiles.map { it.absolutePath }
-                putExtra("songs", ArrayList(filePaths))
-                putExtra("songTitles", ArrayList(allTitles))
-                putExtra("songArtists", ArrayList(allArtists))
-                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types
+                putExtra("songs", ArrayList(filePaths)) // Keep "songs" for backward compatibility
+                putExtra("songTitles", ArrayList(allTitles)) // Keep "songTitles" for backward compatibility
+                putExtra("songArtists", ArrayList(allArtists)) // Keep "songArtists" for backward compatibility
+                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types for layout switching
                 putExtra("pos", actualStartPosition)
-                putExtra("songName", allTitles[actualStartPosition])
+                putExtra("songName", allTitles[actualStartPosition]) // Keep "songName" for backward compatibility
             }
 
-            Log.d("PlaylistActivity", "Launching music player with ${allFiles.size} media items, starting at position $actualStartPosition")
+            Log.d("PlaylistActivity", "Launching unified player with ${allFiles.size} media items")
             Log.d("PlaylistActivity", "Media types: ${mediaTypes.joinToString(", ")}")
+            Log.d("PlaylistActivity", "Starting at position $actualStartPosition: ${allTitles[actualStartPosition]} (${mediaTypes[actualStartPosition]})")
+
             startActivity(intent)
 
         } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error launching music player: ${e.message}", e)
-            Toast.makeText(this, "Error starting music player", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Launch VideoPlayerActivity with the current filtered playlist.
-     * Now handles mixed media - includes all media types for seamless transitions.
-     */
-    private fun launchVideoPlayer(startFromPosition: Int) {
-        try {
-            Log.d("PlaylistActivity", "launchVideoPlayer called with startFromPosition: $startFromPosition")
-            Log.d("PlaylistActivity", "Filtered media items count: ${filteredMediaItems.size}")
-
-            // Convert ALL media items to files (both songs and videos)
-            val allFiles = mutableListOf<File>()
-            val allTitles = mutableListOf<String>()
-            val allArtists = mutableListOf<String>()
-            val mediaTypes = mutableListOf<String>() // Track what type each file is
-
-            filteredMediaItems.forEach { mediaItem ->
-                when (mediaItem) {
-                    is MediaItem.SongItem -> {
-                        val file = convertSongToFile(mediaItem.song)
-                        if (file != null) {
-                            allFiles.add(file)
-                            allTitles.add(mediaItem.song.title)
-                            allArtists.add(mediaItem.song.artist)
-                            mediaTypes.add("audio")
-                        }
-                    }
-                    is MediaItem.VideoItem -> {
-                        val file = convertVideoToFile(mediaItem.video)
-                        if (file != null) {
-                            allFiles.add(file)
-                            allTitles.add(mediaItem.video.title)
-                            allArtists.add(mediaItem.video.artist)
-                            mediaTypes.add("video")
-                        }
-                    }
-                }
-            }
-
-            if (allFiles.isEmpty()) {
-                Log.w("PlaylistActivity", "No playable media files found after conversion")
-                Toast.makeText(this, "No playable media files found", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            // Determine the starting position in the combined list
-            val actualStartPosition = startFromPosition.coerceIn(0, allFiles.size - 1)
-            Log.d("PlaylistActivity", "Actual start position: $actualStartPosition")
-
-            // Create intent and pass mixed media data
-            val intent = Intent(this, VideoPlayerActivity::class.java).apply {
-                val filePaths = allFiles.map { it.absolutePath }
-                putExtra("videos", ArrayList(filePaths)) // VideoPlayerActivity expects "videos"
-                putExtra("videoTitles", ArrayList(allTitles))
-                putExtra("videoArtists", ArrayList(allArtists))
-                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types
-                putExtra("pos", actualStartPosition)
-                putExtra("videoName", allTitles[actualStartPosition])
-            }
-
-            Log.d("PlaylistActivity", "Launching video player with ${allFiles.size} media items, starting at position $actualStartPosition")
-            Log.d("PlaylistActivity", "Media types: ${mediaTypes.joinToString(", ")}")
-            Log.d("PlaylistActivity", "Video titles: ${allTitles.joinToString(", ")}")
-
-            startActivity(intent)
-
-        } catch (e: ClassNotFoundException) {
-            Log.e("PlaylistActivity", "VideoPlayerActivity class not found - is it in AndroidManifest.xml?", e)
-            Toast.makeText(this, "Video player not available", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error launching video player: ${e.message}", e)
-            Toast.makeText(this, "Error starting video player: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("PlaylistActivity", "Error launching unified player: ${e.message}", e)
+            Toast.makeText(this, "Error starting player", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -791,11 +693,6 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
     /**
      * Tints btnRepeat red when repeat is on, white when off.
      * This is purely visual — it never calls toggleRepeat() itself.
-     *
-     * If you'd rather swap drawables instead of tinting, replace the two
-     * setIconResource() calls with:
-     *   btnRepeat.setIconResource(if (isRepeat) R.drawable.ic_repeat_active else R.drawable.ic_repeat)
-     * and remove the iconTint lines.
      */
     private fun syncRepeatButton(isRepeat: Boolean) {
         val tintColor = if (isRepeat) R.color.red else R.color.white

@@ -75,8 +75,19 @@
                 android:value=".PlaylistSelectionActivity" />
         </activity>
 
-        <!-- Music Player Activity -->
         <activity
+            android:name=".UnifiedPlayerActivity"
+            android:exported="false"
+            android:screenOrientation="sensor"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode"
+            android:parentActivityName=".PlaylistActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".PlaylistActivity" />
+        </activity>
+
+        <!-- Music Player Activity -->
+        <!--<activity
             android:name=".MusicPlayerActivity"
             android:exported="false"
             android:screenOrientation="portrait"
@@ -94,7 +105,7 @@
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".PlaylistActivity" />
-        </activity>
+        </activity>-->
 
         <!--
             MusicPlayerService — foregroundServiceType="mediaPlayback" is required:
