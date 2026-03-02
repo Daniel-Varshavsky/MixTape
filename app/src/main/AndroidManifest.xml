@@ -114,7 +114,7 @@
                 required (declared above) or the service will be killed immediately
         -->
         <service
-            android:name=".service.MusicPlayerService"
+            android:name=".service.UnifiedPlayerService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
 

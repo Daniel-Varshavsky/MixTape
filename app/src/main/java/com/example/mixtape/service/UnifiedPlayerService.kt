@@ -34,7 +34,7 @@ import java.io.File
  */
 
 @UnstableApi
-class MusicPlayerService : Service() {
+class UnifiedPlayerService : Service() {
 
     // ─────────────────────────────────────────────────────────────────────────
     // Constants
@@ -109,7 +109,7 @@ class MusicPlayerService : Service() {
     // ─────────────────────────────────────────────────────────────────────────
 
     inner class ServiceBinder : Binder() {
-        fun getService(): MusicPlayerService = this@MusicPlayerService
+        fun getService(): UnifiedPlayerService = this@UnifiedPlayerService
     }
 
     private val binder = ServiceBinder()
@@ -531,7 +531,7 @@ class MusicPlayerService : Service() {
         val playing = isPlaying()
         val contentTitle = if (currentMediaType == "video") "Now Watching" else "Now Playing"
         fun actionPendingIntent(action: String): PendingIntent {
-            val i = Intent(this, MusicPlayerService::class.java).apply { this.action = action }
+            val i = Intent(this, UnifiedPlayerService::class.java).apply { this.action = action }
             return PendingIntent.getService(this, action.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
         val openAppIntent = Intent(this, UnifiedPlayerActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }

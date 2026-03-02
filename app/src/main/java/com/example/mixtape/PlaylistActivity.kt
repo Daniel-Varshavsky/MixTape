@@ -20,7 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.adapters.*
 import com.example.mixtape.model.*
-import com.example.mixtape.service.MusicPlayerService
+import com.example.mixtape.service.UnifiedPlayerService
 import com.example.mixtape.utilities.FirebaseRepository
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 @UnstableApi
-class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
+class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListener {
 
     // ── Firebase / data ───────────────────────────────────────────────────────
     private lateinit var auth: FirebaseAuth
@@ -59,12 +59,12 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
     private lateinit var btnRepeat: MaterialButton
 
     // ── MusicPlayerService binding ────────────────────────────────────────────
-    private var musicService: MusicPlayerService? = null
+    private var musicService: UnifiedPlayerService? = null
     private var isBound = false
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            musicService = (binder as MusicPlayerService.ServiceBinder).getService()
+            musicService = (binder as UnifiedPlayerService.ServiceBinder).getService()
             isBound = true
             musicService?.addListener(this@PlaylistActivity)
             // Sync the repeat button to whatever the service already has
@@ -100,7 +100,7 @@ class PlaylistActivity : AppCompatActivity(), MusicPlayerService.PlayerListener 
         // service if it isn't running yet — that's fine here because the service
         // is cheap until initPlaylist() is called.
         bindService(
-            Intent(this, MusicPlayerService::class.java),
+            Intent(this, UnifiedPlayerService::class.java),
             serviceConnection,
             Context.BIND_AUTO_CREATE
         )

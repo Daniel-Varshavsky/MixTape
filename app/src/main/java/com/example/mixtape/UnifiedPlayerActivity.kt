@@ -29,9 +29,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.util.UnstableApi
-import com.example.mixtape.service.MusicPlayerService
+import com.example.mixtape.service.UnifiedPlayerService
 import com.example.mixtape.ui.BarVisualizerView
-import com.example.mixtape.R
 import java.io.File
 import kotlin.math.abs
 
@@ -63,7 +62,7 @@ import com.google.android.material.button.MaterialButton
  * 5. Perfect synchronization between video and audio via callbacks
  */
 @UnstableApi
-class UnifiedPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerListener {
+class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListener {
 
     companion object {
         private const val TAG = "UnifiedPlayerActivity"
@@ -105,12 +104,12 @@ class UnifiedPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerList
     // Service binding
     // ─────────────────────────────────────────────────────────────────────────
 
-    private var musicService: MusicPlayerService? = null
+    private var musicService: UnifiedPlayerService? = null
     private var isBound = false
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            val b = binder as MusicPlayerService.ServiceBinder
+            val b = binder as UnifiedPlayerService.ServiceBinder
             musicService = b.getService()
             isBound = true
 
@@ -228,7 +227,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), MusicPlayerService.PlayerList
         requestAudioPermissionIfNeeded()
 
         // Start the service and bind to it
-        val serviceIntent = Intent(this, MusicPlayerService::class.java)
+        val serviceIntent = Intent(this, UnifiedPlayerService::class.java)
         startService(serviceIntent)
 
         servicePreviouslyRunning = savedInstanceState?.getBoolean("service_running", false) ?: false
