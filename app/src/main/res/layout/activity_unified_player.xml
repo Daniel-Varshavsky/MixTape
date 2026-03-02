@@ -345,64 +345,19 @@
 
                 </RelativeLayout>
 
-                <!-- Video Control Buttons (Horizontal Layout) -->
-                <androidx.appcompat.widget.LinearLayoutCompat
+                <!-- Video Control Buttons (Relative Layout for Dynamic Positioning) -->
+                <RelativeLayout
+                    android:id="@+id/videoButtonsContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
                     android:layout_marginTop="8dp">
 
-                    <!-- Video Repeat Button (smaller for video) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/videoButtonRepeat"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        app:icon="@drawable/baseline_repeat_24"
-                        app:iconTint="@color/white"
-                        app:iconSize="24dp"
-                        app:iconGravity="textStart"
-                        app:backgroundTint="@android:color/transparent"
-                        app:rippleColor="@color/red_10"
-                        android:contentDescription="Toggle repeat"
-                        android:layout_marginEnd="8dp" />
-
-                    <!-- Video Previous Button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/videoButtonPrevious"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        app:icon="@drawable/baseline_skip_previous_24"
-                        app:iconTint="@color/white"
-                        app:iconSize="24dp"
-                        app:iconGravity="textStart"
-                        app:backgroundTint="@android:color/transparent"
-                        app:rippleColor="@color/red_10"
-                        android:contentDescription="Previous video"
-                        android:layout_marginEnd="8dp" />
-
-                    <!-- Video Fast Rewind Button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/videoButtonFastRewind"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        app:icon="@drawable/baseline_fast_rewind_24"
-                        app:iconTint="@color/white"
-                        app:iconSize="24dp"
-                        app:iconGravity="textStart"
-                        app:backgroundTint="@android:color/transparent"
-                        app:rippleColor="@color/red_10"
-                        android:contentDescription="Rewind 10 seconds"
-                        android:layout_marginEnd="16dp" />
-
-                    <!-- Video Play/Pause Button (larger, central) -->
+                    <!-- Video Play/Pause Button (Central Reference) -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonPlay"
                         android:layout_width="64dp"
                         android:layout_height="64dp"
+                        android:layout_centerHorizontal="true"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_play_arrow_24"
                         app:iconTint="@color/white"
@@ -415,11 +370,48 @@
                         app:rippleColor="@color/red_10"
                         android:contentDescription="Play/Pause" />
 
+                    <!-- Video Fast Rewind Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonFastRewind"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_toStartOf="@id/videoButtonPlay"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_fast_rewind_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Rewind 10 seconds" />
+
+                    <!-- Video Previous Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonPrevious"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_toStartOf="@id/videoButtonFastRewind"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="8dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_skip_previous_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Previous video" />
+
                     <!-- Video Fast Forward Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonFastForward"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
+                        android:layout_toEndOf="@id/videoButtonPlay"
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="16dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_fast_forward_24"
                         app:iconTint="@color/white"
@@ -427,15 +419,16 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Forward 10 seconds"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="8dp" />
+                        android:contentDescription="Forward 10 seconds" />
 
                     <!-- Video Next Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonNext"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
+                        android:layout_toEndOf="@id/videoButtonFastForward"
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="8dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_skip_next_24"
                         app:iconTint="@color/white"
@@ -443,10 +436,26 @@
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Next video"
-                        android:layout_marginStart="8dp" />
+                        android:contentDescription="Next video" />
 
-                </androidx.appcompat.widget.LinearLayoutCompat>
+                    <!-- Video Repeat Button (Positioning overridden in code for orientation) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonRepeat"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_toStartOf="@id/videoButtonPrevious"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="8dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_repeat_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Toggle repeat" />
+
+                </RelativeLayout>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
