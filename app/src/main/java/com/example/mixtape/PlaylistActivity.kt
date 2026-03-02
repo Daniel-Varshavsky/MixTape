@@ -613,6 +613,94 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     }
 
     /**
+     * Fisher-Yates shuffle algorithm implementation
+     * This is considered one of the best shuffling algorithms as it produces
+     * a uniformly random permutation of the array.
+     *
+     * Time Complexity: O(n)
+     * Space Complexity: O(1) - in-place shuffling
+     */
+    private fun fisherYatesShuffle(items: MutableList<MediaItem>) {
+        for (i in items.size - 1 downTo 1) {
+            // Pick a random index from 0 to i (inclusive)
+            val j = (Math.random() * (i + 1)).toInt()
+            // Swap items[i] and items[j]
+            val temp = items[i]
+            items[i] = items[j]
+            items[j] = temp
+        }
+    }
+
+    /**
+     * Launch UnifiedPlayerActivity with a custom order of media items.
+     * This is used for shuffled playback where we want to play items in a specific order
+     * that differs from the filtered list.
+     */
+    private fun launchUnifiedPlayerWithCustomOrder(customOrderItems: List<MediaItem>, startFromPosition: Int) {
+        try {
+            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with custom order: \${customOrderItems.size} items, starting at position \$startFromPosition")
+
+            // Convert ALL media items to files (both songs and videos)
+            val allFiles = mutableListOf<File>()
+            val allTitles = mutableListOf<String>()
+            val allArtists = mutableListOf<String>()
+            val mediaTypes = mutableListOf<String>() // Track what type each file is
+
+            customOrderItems.forEach { mediaItem ->
+                when (mediaItem) {
+                    is MediaItem.SongItem -> {
+                        val file = convertSongToFile(mediaItem.song)
+                        if (file != null) {
+                            allFiles.add(file)
+                            allTitles.add(mediaItem.song.title)
+                            allArtists.add(mediaItem.song.artist)
+                            mediaTypes.add("audio")
+                        }
+                    }
+                    is MediaItem.VideoItem -> {
+                        val file = convertVideoToFile(mediaItem.video)
+                        if (file != null) {
+                            allFiles.add(file)
+                            allTitles.add(mediaItem.video.title)
+                            allArtists.add(mediaItem.video.artist)
+                            mediaTypes.add("video")
+                        }
+                    }
+                }
+            }
+
+            if (allFiles.isEmpty()) {
+                Toast.makeText(this, "No playable media files found", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Determine the starting position in the combined list
+            val actualStartPosition = startFromPosition.coerceIn(0, allFiles.size - 1)
+
+            // Create intent for UnifiedPlayerActivity
+            val intent = Intent(this, UnifiedPlayerActivity::class.java).apply {
+                val filePaths = allFiles.map { it.absolutePath }
+                putExtra("songs", ArrayList(filePaths)) // Keep "songs" for backward compatibility
+                putExtra("songTitles", ArrayList(allTitles)) // Keep "songTitles" for backward compatibility
+                putExtra("songArtists", ArrayList(allArtists)) // Keep "songArtists" for backward compatibility
+                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types for layout switching
+                putExtra("pos", actualStartPosition)
+                putExtra("songName", allTitles[actualStartPosition]) // Keep "songName" for backward compatibility
+            }
+
+            Log.d("PlaylistActivity", "Launching unified player with \${allFiles.size} media items (custom order)")
+            Log.d("PlaylistActivity", "Media types: \${mediaTypes.joinToString(\", \")}")
+            Log.d("PlaylistActivity", "Starting at position \$actualStartPosition: \${allTitles[actualStartPosition]} (\${mediaTypes[actualStartPosition]})")
+
+            startActivity(intent)
+
+        } catch (e: Exception) {
+            Log.e("PlaylistActivity", "Error launching unified player with custom order: \${e.message}", e)
+            Toast.makeText(this, "Error starting shuffled player", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
      * Convert a Song object to a File object.
      * Creates a placeholder file with Firebase Storage URL.
      * Filename doesn't matter since we pass titles separately now.
@@ -684,8 +772,21 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     }
 
     private fun shufflePlay() {
-        Toast.makeText(this, "Shuffle mode toggled", Toast.LENGTH_SHORT).show()
-        // TODO: Toggle shuffle state in MusicPlayerService once shuffle is implemented there
+        if (filteredMediaItems.isEmpty()) {
+            Toast.makeText(this, "No items to shuffle", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Create a copy of filtered items to shuffle (so we don't modify the original list)
+        val itemsToShuffle = filteredMediaItems.toMutableList()
+
+        // Apply Fisher-Yates shuffle algorithm
+        fisherYatesShuffle(itemsToShuffle)
+
+        Log.d("PlaylistActivity", "Shuffled \${itemsToShuffle.size} items using Fisher-Yates algorithm")
+
+        // Launch UnifiedPlayerActivity with the shuffled playlist starting from position 0
+        launchUnifiedPlayerWithCustomOrder(itemsToShuffle, 0)
     }
 
     // ── Repeat visual sync ────────────────────────────────────────────────────

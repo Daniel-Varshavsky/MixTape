@@ -114,23 +114,7 @@
                 android:layout_height="match_parent">
 
                 <!-- AUDIO CONTROL BUTTONS -->
-                <!-- Repeat Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonRepeat"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="15dp"
-                    android:layout_marginEnd="10dp"
-                    android:layout_toStartOf="@+id/buttonPrevious"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    app:icon="@drawable/baseline_repeat_24"
-                    app:iconTint="@color/white"
-                    app:iconSize="24dp"
-                    app:iconGravity="textStart"
-                    app:backgroundTint="@android:color/transparent"
-                    app:rippleColor="@color/red_10"
-                    android:contentDescription="Toggle repeat" />
-
+                
                 <!-- Previous Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonPrevious"
@@ -214,6 +198,24 @@
                     app:backgroundTint="@android:color/transparent"
                     app:rippleColor="@color/red_10"
                     android:contentDescription="Next track" />
+
+                <!-- Repeat Button (Moved below and between Rewind/Play) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonRepeat"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_below="@+id/buttonFastRewind"
+                    android:layout_toStartOf="@+id/buttonPlay"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginEnd="-25dp"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/baseline_repeat_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="24dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Toggle repeat" />
 
                 <!-- Audio Visualizer -->
                 <com.example.mixtape.ui.BarVisualizerView
