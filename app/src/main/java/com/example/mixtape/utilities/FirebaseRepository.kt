@@ -53,16 +53,39 @@ class FirebaseRepository {
             val doc = usersCollection.document(currentUid).get().await()
 
             if (doc.exists()) {
-                val profile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
+                var profile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
                     ?: throw Exception("User profile not found")
+                
+                // If critical fields are missing, update them from Auth and merge
+                if (profile.displayName.isEmpty() || profile.email.isEmpty()) {
+                    val authUser = auth.currentUser
+                    val fallbackName = authUser?.displayName?.takeIf { it.isNotEmpty() } 
+                        ?: authUser?.email?.substringBefore("@") 
+                        ?: "User"
+                    
+                    val updatedProfile = profile.copy(
+                        displayName = if (profile.displayName.isEmpty()) fallbackName else profile.displayName,
+                        email = if (profile.email.isEmpty()) authUser?.email ?: "" else profile.email
+                    )
+                    
+                    // Update Firestore with the found info
+                    updateUserProfile(updatedProfile)
+                    profile = updatedProfile
+                }
+                
                 Result.success(profile)
             } else {
                 // Create basic profile if it doesn't exist
                 createUserProfileIfNotExists(currentUid)
+                val authUser = auth.currentUser
+                val name = authUser?.displayName?.takeIf { it.isNotEmpty() } 
+                    ?: authUser?.email?.substringBefore("@") 
+                    ?: "User"
+                
                 val basicProfile = UserProfile(
                     id = currentUid,
-                    email = auth.currentUser?.email ?: "",
-                    displayName = auth.currentUser?.displayName ?: auth.currentUser?.email?.substringBefore("@") ?: "User",
+                    email = authUser?.email ?: "",
+                    displayName = name,
                     globalTags = emptyList(),
                     createdAt = com.google.firebase.Timestamp.now(),
                     updatedAt = com.google.firebase.Timestamp.now()
@@ -77,7 +100,7 @@ class FirebaseRepository {
     suspend fun updateUserProfile(profile: UserProfile): Result<Unit> {
         return try {
             val currentUid = userId ?: throw Exception("User not authenticated")
-            usersCollection.document(currentUid).set(profile).await()
+            usersCollection.document(currentUid).set(profile, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -146,8 +169,15 @@ class FirebaseRepository {
         try {
             val doc = usersCollection.document(uid).get().await()
             if (!doc.exists()) {
-                val userData = mapOf(
+                val user = auth.currentUser
+                val name = user?.displayName?.takeIf { it.isNotEmpty() } 
+                    ?: user?.email?.substringBefore("@") 
+                    ?: "User"
+                
+                val userData = mutableMapOf(
                     "id" to uid,
+                    "email" to (user?.email ?: ""),
+                    "displayName" to name,
                     "globalTags" to emptyList<String>(),
                     "createdAt" to com.google.firebase.Timestamp.now(),
                     "updatedAt" to com.google.firebase.Timestamp.now()

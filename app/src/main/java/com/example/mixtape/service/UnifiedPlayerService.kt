@@ -52,6 +52,7 @@ class UnifiedPlayerService : Service() {
         const val ACTION_FAST_FORWARD = "com.example.mixtape.FAST_FORWARD"
         const val ACTION_FAST_REWIND  = "com.example.mixtape.FAST_REWIND"
         const val ACTION_REPEAT       = "com.example.mixtape.REPEAT"
+        const val ACTION_AUTOPLAY     = "com.example.mixtape.AUTOPLAY"
         const val ACTION_STOP         = "com.example.mixtape.STOP"
     }
 
@@ -68,6 +69,7 @@ class UnifiedPlayerService : Service() {
     private var mediaTypes: ArrayList<String> = arrayListOf()
     private var currentPosition: Int = 0
     private var isRepeatOn: Boolean = false
+    private var isAutoplayOn: Boolean = true
 
     private var currentActivityContext: String = "unified"
     private var currentMediaType: String = "audio"
@@ -98,6 +100,7 @@ class UnifiedPlayerService : Service() {
         fun onSongChanged(position: Int, songName: String)
         fun onPlaybackStateChanged(isPlaying: Boolean)
         fun onRepeatChanged(isRepeat: Boolean)
+        fun onAutoplayChanged(isAutoplay: Boolean)
         fun onRequestActivitySwitch(position: Int, mediaType: String)
         fun onVideoPositionUpdate(position: Int, duration: Int)
     }
@@ -133,6 +136,7 @@ class UnifiedPlayerService : Service() {
             ACTION_FAST_FORWARD -> fastForward()
             ACTION_FAST_REWIND  -> fastRewind()
             ACTION_REPEAT       -> toggleRepeat()
+            ACTION_AUTOPLAY     -> toggleAutoplay()
             ACTION_STOP         -> {
                 stopCurrentPlayback()
                 stopSelf()
@@ -334,9 +338,24 @@ class UnifiedPlayerService : Service() {
 
                 setOnCompletionListener {
                     if (isRepeatOn) {
-                        if (currentMediaType == "video") playCurrentVideoAudio() else playCurrentAudio()
-                    } else {
+                        if (currentMediaType == "video") {
+                            playCurrentVideoAudio()
+                        } else {
+                            playCurrentAudio()
+                        }
+                    } else if (isAutoplayOn) {
                         playNext()
+                    } else {
+                        // Track finished and autoplay is OFF
+                        listeners.forEach { it.onPlaybackStateChanged(false) }
+
+                        invalidateMediaSessionState()
+                        updateNotification()
+
+                        // Optional but recommended: reset to beginning
+                        try {
+                            seekTo(0)
+                        } catch (_: Exception) {}
                     }
                 }
                 setOnErrorListener { _, _, _ -> playNext(); true }
@@ -442,6 +461,11 @@ class UnifiedPlayerService : Service() {
         updateNotification()
     }
 
+    fun toggleAutoplay() {
+        isAutoplayOn = !isAutoplayOn
+        listeners.forEach { it.onAutoplayChanged(isAutoplayOn) }
+    }
+
     fun fastForward() {
         mediaPlayer?.let { it.seekTo(it.currentPosition + 10_000) }
     }
@@ -456,6 +480,7 @@ class UnifiedPlayerService : Service() {
 
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
     fun isRepeat(): Boolean = isRepeatOn
+    fun isAutoplay(): Boolean = isAutoplayOn
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
     fun getSongPosition(): Int = currentPosition

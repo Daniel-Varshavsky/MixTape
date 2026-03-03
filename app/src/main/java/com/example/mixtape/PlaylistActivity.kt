@@ -11,6 +11,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.*
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -61,6 +62,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     private lateinit var btnPlayAll: MaterialButton
     private lateinit var btnShuffle: MaterialButton
     private lateinit var btnRepeat: MaterialButton
+    private lateinit var btnAutoplay: MaterialButton
 
     // ── MusicPlayerService binding ────────────────────────────────────────────
     private var musicService: UnifiedPlayerService? = null
@@ -73,6 +75,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             musicService?.addListener(this@PlaylistActivity)
             // Sync the repeat button to whatever the service already has
             syncRepeatButton(musicService?.isRepeat() ?: false)
+            syncAutoplayButton(musicService?.isAutoplay() ?: true)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -98,6 +101,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         setupLogout()
         updateUserDisplay()
         loadPlaylistData()
+        setupBackPressHandler()
 
         // Bind to MusicPlayerService if it is already running (user came from
         // UnifiedPlayerActivity). BIND_AUTO_CREATE means Android will start the
@@ -113,7 +117,11 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     override fun onResume() {
         super.onResume()
         refreshGlobalTags()
-        if (isBound) syncRepeatButton(musicService?.isRepeat() ?: false)
+        if (isBound) {
+            syncRepeatButton(musicService?.isRepeat() ?: false)
+            syncAutoplayButton(musicService?.isAutoplay() ?: true)
+        }
+        updateUserDisplay() // Refresh name if it was updated
     }
 
     override fun onDestroy() {
@@ -138,6 +146,10 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         syncRepeatButton(isRepeat)
     }
 
+    override fun onAutoplayChanged(isAutoplay: Boolean) {
+        syncAutoplayButton(isAutoplay)
+    }
+
     /**
      * Not needed in PlaylistActivity since it launches UnifiedPlayerActivity directly.
      */
@@ -160,6 +172,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         btnPlayAll    = findViewById(R.id.btnPlayAll)
         btnShuffle    = findViewById(R.id.btnShuffle)
         btnRepeat     = findViewById(R.id.btnRepeat)
+        btnAutoplay    = findViewById(R.id.btnAutoplay)
 
         findViewById<MaterialButton>(R.id.btnMenu).setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
@@ -179,6 +192,14 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                 musicService?.toggleRepeat()
             } else {
                 Toast.makeText(this, "Start playing a song first to use repeat", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnAutoplay.setOnClickListener {
+            if (isBound) {
+                musicService?.toggleAutoplay()
+            } else {
+                Toast.makeText(this, "Start playing a song first to use autoplay", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -221,7 +242,20 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
 
     private fun updateUserDisplay() {
         val user = auth.currentUser
-        userName.text = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
+        val fallbackName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
+        userName.text = fallbackName
+
+        lifecycleScope.launch {
+            try {
+                repository.getUserProfile().onSuccess { profile ->
+                    if (profile.displayName.isNotEmpty()) {
+                        userName.text = profile.displayName
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore, fallback name already set
+            }
+        }
     }
 
     private fun logout() {
@@ -235,6 +269,19 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })
         finish()
+    }
+
+    private fun setupBackPressHandler() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
     }
 
     // ── Playlist + tag loading ────────────────────────────────────────────────
@@ -810,6 +857,11 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     private fun syncRepeatButton(isRepeat: Boolean) {
         val tintColor = if (isRepeat) R.color.red else R.color.white
         btnRepeat.iconTint = resources.getColorStateList(tintColor, theme)
+    }
+
+    private fun syncAutoplayButton(isAutoplay: Boolean) {
+        val tintColor = if (isAutoplay) R.color.red else R.color.white
+        btnAutoplay.iconTint = resources.getColorStateList(tintColor, theme)
     }
 
     // ── Edit playlist dialog ──────────────────────────────────────────────────

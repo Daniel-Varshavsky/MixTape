@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.concurrent.TimeUnit
 
@@ -143,13 +144,26 @@ class RegisterActivity : AppCompatActivity() {
                 if (task.isSuccessful) {
                     Log.d(TAG, "createUserWithEmail:success")
                     val user = auth.currentUser
+                    val displayName = email.substringBefore("@")
 
                     // Update UI to show Firestore step
                     registerButton.text = "Setting up profile..."
 
-                    // Save user data to Firestore with timeout
+                    // 1. Update Firebase Auth Profile so displayName is persisted
+                    val profileUpdates = UserProfileChangeRequest.Builder()
+                        .setDisplayName(displayName)
+                        .build()
+                    
+                    user?.updateProfile(profileUpdates)
+                        ?.addOnCompleteListener { profileTask ->
+                            if (profileTask.isSuccessful) {
+                                Log.d(TAG, "User auth profile updated.")
+                            }
+                        }
+
+                    // 2. Save user data to Firestore
                     user?.let {
-                        createUserProfile(it.uid, email)
+                        createUserProfile(it.uid, email, displayName)
                     } ?: run {
                         // Fallback if user is null
                         handleRegistrationComplete()
@@ -172,11 +186,14 @@ class RegisterActivity : AppCompatActivity() {
             }
     }
 
-    private fun createUserProfile(uid: String, email: String) {
+    private fun createUserProfile(uid: String, email: String, displayName: String) {
         val userData = hashMapOf(
+            "id" to uid,
             "email" to email,
-            "displayName" to email.substringBefore("@"),
+            "displayName" to displayName,
             "createdAt" to com.google.firebase.Timestamp.now(),
+            "updatedAt" to com.google.firebase.Timestamp.now(),
+            "globalTags" to emptyList<String>(),
             "playlists" to emptyList<String>()
         )
 

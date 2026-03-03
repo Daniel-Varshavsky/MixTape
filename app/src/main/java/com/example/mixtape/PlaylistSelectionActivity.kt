@@ -67,9 +67,23 @@ class PlaylistSelectionActivity : AppCompatActivity() {
     }
 
     private fun updateUserDisplay() {
+        // Use local Auth as immediate fallback
         val user = auth.currentUser
-        val userName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
-        subtitleText.text = "Welcome back, $userName!"
+        val fallbackName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
+        subtitleText.text = "Welcome back, $fallbackName!"
+
+        // Fetch official profile from Firestore for accuracy
+        lifecycleScope.launch {
+            try {
+                repository.getUserProfile().onSuccess { profile ->
+                    if (profile.displayName.isNotEmpty()) {
+                        subtitleText.text = "Welcome back, ${profile.displayName}!"
+                    }
+                }
+            } catch (e: Exception) {
+                // Silently fail, fallback is already set
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -154,5 +168,6 @@ class PlaylistSelectionActivity : AppCompatActivity() {
         super.onResume()
         // Reload playlists when returning to this activity
         loadPlaylists()
+        updateUserDisplay() // Ensure name is refreshed
     }
 }

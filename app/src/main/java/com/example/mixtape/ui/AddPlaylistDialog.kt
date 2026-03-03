@@ -40,18 +40,29 @@ class AddPlaylistDialog : DialogFragment() {
 
         val cancel = dialog.findViewById<MaterialButton>(R.id.btnCancel)
         val create = dialog.findViewById<MaterialButton>(R.id.btnCreate)
-        val input = dialog.findViewById<EditText>(R.id.playlistNameInput)
+        val join = dialog.findViewById<MaterialButton>(R.id.btnJoin)
+        val nameInput = dialog.findViewById<EditText>(R.id.playlistNameInput)
+        val shareCodeInput = dialog.findViewById<EditText>(R.id.shareCodeInput)
 
         cancel.setOnClickListener {
             dismiss()
         }
 
         create.setOnClickListener {
-            val name = input.text.toString().trim()
+            val name = nameInput.text.toString().trim()
             if (name.isNotEmpty()) {
                 createPlaylist(name, create)
             } else {
-                input.error = "Playlist name required"
+                nameInput.error = "Playlist name required"
+            }
+        }
+
+        join.setOnClickListener {
+            val code = shareCodeInput.text.toString().trim().uppercase()
+            if (code.length == 6) {
+                joinPlaylist(code, join)
+            } else {
+                shareCodeInput.error = "6-character code required"
             }
         }
 
@@ -72,23 +83,15 @@ class AddPlaylistDialog : DialogFragment() {
                 )
 
                 result.onSuccess { playlist ->
-                    createButton.isEnabled = true
-                    createButton.text = "Create"
-
                     Toast.makeText(
                         requireContext(),
                         "Playlist '$name' created successfully!",
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    // Notify parent activity to refresh
                     onPlaylistCreated?.invoke(playlist.id)
-
                     dismiss()
                 }.onFailure { exception ->
-                    createButton.isEnabled = true
-                    createButton.text = "Create"
-
                     Toast.makeText(
                         requireContext(),
                         "Error creating playlist: ${exception.message}",
@@ -96,14 +99,51 @@ class AddPlaylistDialog : DialogFragment() {
                     ).show()
                 }
             } catch (e: Exception) {
-                createButton.isEnabled = true
-                createButton.text = "Create"
-
                 Toast.makeText(
                     requireContext(),
                     "Error: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+            } finally {
+                createButton.isEnabled = true
+                createButton.text = "Create New Playlist"
+            }
+        }
+    }
+
+    private fun joinPlaylist(shareCode: String, joinButton: MaterialButton) {
+        joinButton.isEnabled = false
+        joinButton.text = "Joining..."
+
+        lifecycleScope.launch {
+            try {
+                val result = repository.joinPlaylistByShareCode(shareCode)
+
+                result.onSuccess { playlist ->
+                    Toast.makeText(
+                        requireContext(),
+                        "Successfully joined '${playlist.name}'!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    onPlaylistCreated?.invoke(playlist.id)
+                    dismiss()
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        requireContext(),
+                        "Error joining: ${exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                joinButton.isEnabled = true
+                joinButton.text = "Join Playlist"
             }
         }
     }

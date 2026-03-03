@@ -85,6 +85,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private lateinit var buttonFastForward: MaterialButton
     private lateinit var buttonFastRewind: MaterialButton
     private lateinit var buttonRepeat: MaterialButton
+    private lateinit var buttonAutoplay: MaterialButton
 
     private var musicService: UnifiedPlayerService? = null
     private var isBound = false
@@ -256,6 +257,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         updateRepeatButtonVisual(isRepeat)
     }
 
+    override fun onAutoplayChanged(isAutoplay: Boolean) {
+        updateAutoplayButtonVisual(isAutoplay)
+    }
+
     override fun onRequestActivitySwitch(position: Int, mediaType: String) {
         currentMediaType = mediaType
         showCorrectLayoutForCurrentMedia()
@@ -284,6 +289,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         musicService?.let {
             onPlaybackStateChanged(it.isPlaying())
             updateRepeatButtonVisual(it.isRepeat())
+            updateAutoplayButtonVisual(it.isAutoplay())
             it.setActivityContext("unified")
         }
         supportActionBar?.show()
@@ -298,6 +304,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         musicService?.let {
             onPlaybackStateChanged(it.isPlaying())
             updateRepeatButtonVisual(it.isRepeat())
+            updateAutoplayButtonVisual(it.isAutoplay())
             it.setActivityContext("unified")
         }
         supportActionBar?.hide()
@@ -331,8 +338,6 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         videoTimeStart    = findViewById(R.id.videoTimeStart)
         videoTimeStop     = findViewById(R.id.videoTimeStop)
         videoButtonsContainer = findViewById(R.id.videoButtonsContainer)
-
-        setButtonReferencesForAudio()
     }
 
     private fun setButtonReferencesForAudio() {
@@ -342,6 +347,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         buttonFastForward = audioPlayerLayout.findViewById(R.id.buttonFastForward)
         buttonFastRewind  = audioPlayerLayout.findViewById(R.id.buttonFastRewind)
         buttonRepeat      = audioPlayerLayout.findViewById(R.id.buttonRepeat)
+        buttonAutoplay    = audioPlayerLayout.findViewById(R.id.buttonAutoplay)
 
         buttonPlay.setOnClickListener { musicService?.togglePlayPause() }
         buttonNext.setOnClickListener { isMovingForward = true; musicService?.playNext() }
@@ -349,6 +355,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         buttonFastForward.setOnClickListener { musicService?.fastForward() }
         buttonFastRewind.setOnClickListener { musicService?.fastRewind() }
         buttonRepeat.setOnClickListener { musicService?.toggleRepeat() }
+        buttonAutoplay.setOnClickListener { musicService?.toggleAutoplay() }
     }
 
     private fun setButtonReferencesForVideo() {
@@ -358,6 +365,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         buttonFastForward = videoPlayerLayout.findViewById(R.id.videoButtonFastForward)
         buttonFastRewind  = videoPlayerLayout.findViewById(R.id.videoButtonFastRewind)
         buttonRepeat      = videoPlayerLayout.findViewById(R.id.videoButtonRepeat)
+        buttonAutoplay    = videoPlayerLayout.findViewById(R.id.videoButtonAutoplay)
 
         buttonPlay.setOnClickListener { musicService?.togglePlayPause(); resetHideControlsTimer() }
         buttonNext.setOnClickListener { isMovingForward = true; musicService?.playNext(); resetHideControlsTimer() }
@@ -373,6 +381,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
             resetHideControlsTimer()
         }
         buttonRepeat.setOnClickListener { musicService?.toggleRepeat(); resetHideControlsTimer() }
+        buttonAutoplay.setOnClickListener { musicService?.toggleAutoplay(); resetHideControlsTimer() }
     }
 
     private fun readIntent() {
@@ -527,27 +536,43 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.END)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.START)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.TOP)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.BOTTOM)
 
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.START, R.id.videoButtonFastRewind, ConstraintSet.END)
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.END, R.id.videoButtonPlay, ConstraintSet.START)
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.START, R.id.videoButtonPlay, ConstraintSet.END)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.END, R.id.videoButtonFastForward, ConstraintSet.START)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
             
             // Re-apply vertical centering or margins if needed
             constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, (12 * resources.displayMetrics.density).toInt())
-            
+            constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.TOP, (12 * resources.displayMetrics.density).toInt())
+
             Log.d(TAG, "Video buttons set to Portrait layout")
         } else {
             // LANDSCAPE: Restore horizontal row (Repeat to the left of Previous)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.START)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.END)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.TOP)
+            constraintSet.clear(R.id.videoButtonAutoplay, ConstraintSet.BOTTOM)
 
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.END, R.id.videoButtonPrevious, ConstraintSet.START)
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.TOP)
             constraintSet.connect(R.id.videoButtonRepeat, ConstraintSet.BOTTOM, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.START, R.id.videoButtonNext, ConstraintSet.END)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.TOP)
+            constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.BOTTOM, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
             
             constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.END, (8 * resources.displayMetrics.density).toInt())
             constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, 0)
+            constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.END, (8 * resources.displayMetrics.density).toInt())
+            constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.TOP, 0)
+
 
             Log.d(TAG, "Video buttons set to Landscape layout")
         }
@@ -589,6 +614,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         videoTimeStop.text = createTime(duration); videoTimeStart.text = createTime(currentPos)
         onPlaybackStateChanged(service.isPlaying())
         updateRepeatButtonVisual(service.isRepeat())
+        updateAutoplayButtonVisual(service.isAutoplay())
     }
 
     private fun requestAudioPermissionIfNeeded() {
@@ -609,6 +635,11 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private fun updateRepeatButtonVisual(isRepeat: Boolean) {
         val tintColor = if (isRepeat) R.color.red else R.color.white
         buttonRepeat.iconTint = resources.getColorStateList(tintColor, theme)
+    }
+
+    private fun updateAutoplayButtonVisual(isAutoplay: Boolean) {
+        val tintColor = if (isAutoplay) R.color.red else R.color.white
+        buttonAutoplay.iconTint = resources.getColorStateList(tintColor, theme)
     }
 
     private fun attachVisualizer() {
