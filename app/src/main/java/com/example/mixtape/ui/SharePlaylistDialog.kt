@@ -139,31 +139,49 @@ class SharePlaylistDialog : DialogFragment() {
 
         lifecycleScope.launch {
             try {
-                // TODO: First need to find user by email, then share with their userId
-                // For now, show a placeholder message
-                Toast.makeText(
-                    requireContext(),
-                    "Direct user sharing will be implemented when user search is added",
-                    Toast.LENGTH_LONG
-                ).show()
+                val userResult = repository.findUserByEmail(email)
                 
-                shareButton.isEnabled = true
-                shareButton.text = "Share with User"
-                
-                // Future implementation:
-                // val result = repository.findUserByEmail(email)
-                // result.onSuccess { user ->
-                //     repository.sharePlaylistWithUser(playlistId, user.id, "")
-                // }
+                userResult.onSuccess { user ->
+                    val shareResult = repository.sharePlaylistWithUser(playlistId, user.id, "")
+                    
+                    shareResult.onSuccess {
+                        Toast.makeText(
+                            requireContext(),
+                            "Playlist shared successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        dismiss() // Optional: dismiss dialog on success
+                    }.onFailure { e ->
+                        Toast.makeText(
+                            requireContext(),
+                            "Error sharing: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }.onFailure { e ->
+                    if (e.message == "User not found") {
+                        Toast.makeText(
+                            requireContext(),
+                            "No such user",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "Error: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             } catch (e: Exception) {
-                shareButton.isEnabled = true
-                shareButton.text = "Share with User"
-                
                 Toast.makeText(
                     requireContext(),
-                    "Error: ${e.message}",
+                    "Unexpected error: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+            } finally {
+                shareButton.isEnabled = true
+                shareButton.text = "Share with User"
             }
         }
     }

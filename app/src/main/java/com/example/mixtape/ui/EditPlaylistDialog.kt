@@ -29,6 +29,7 @@ class EditPlaylistDialog : DialogFragment() {
 
     private var playlistName: String = ""
     private var playlistId: String = ""
+    private var originalOwnerId: String = "" // NEW: Track the original owner
     private var originalMediaItems: MutableList<MediaItem> = mutableListOf() // Original items from Firebase
     private var displayedItems: MutableList<MediaItem> = mutableListOf() // Items shown in UI (including pending)
     private var availableTags: List<String> = emptyList()
@@ -50,6 +51,7 @@ class EditPlaylistDialog : DialogFragment() {
         fun newInstance(
             playlistId: String,
             playlistName: String,
+            originalOwnerId: String, // NEW: Pass original owner ID
             mediaItems: List<MediaItem>,
             availableTags: List<String>,
             onPlaylistUpdated: (() -> Unit)? = null
@@ -58,6 +60,7 @@ class EditPlaylistDialog : DialogFragment() {
             val args = Bundle()
             args.putString("PLAYLIST_ID", playlistId)
             args.putString("PLAYLIST_NAME", playlistName)
+            args.putString("ORIGINAL_OWNER_ID", originalOwnerId)
             fragment.arguments = args
 
             // FIXED: Sort media items by entry order (createdAt) before adding to dialog
@@ -103,8 +106,9 @@ class EditPlaylistDialog : DialogFragment() {
 
         playlistId = arguments?.getString("PLAYLIST_ID") ?: ""
         playlistName = arguments?.getString("PLAYLIST_NAME") ?: "Playlist"
+        originalOwnerId = arguments?.getString("ORIGINAL_OWNER_ID") ?: ""
 
-        Log.d(TAG, "Dialog opened for playlist: $playlistName (ID: $playlistId)")
+        Log.d(TAG, "Dialog opened for playlist: $playlistName (ID: $playlistId), Original Owner: $originalOwnerId")
 
         setupDialog(dialog)
         return dialog
@@ -353,9 +357,19 @@ class EditPlaylistDialog : DialogFragment() {
 
             Log.d(TAG, "Removed pending upload: ${item.title}")
         } else {
-            // For existing items, stage for complete deletion
+            // Check if current user is the original owner
+            val currentUid = repository.getCurrentUserId()
+            val isOriginalOwner = currentUid == originalOwnerId
+
+            // If user IS the owner, DELETE COMPLETELY. If NOT, just REMOVE FROM PLAYLIST.
+            val action = if (isOriginalOwner) {
+                ChangeAction.DELETE_COMPLETELY
+            } else {
+                ChangeAction.REMOVE_FROM_PLAYLIST
+            }
+
             stagedChanges.mediaItemChanges.add(
-                MediaItemChange(item.id, ChangeAction.DELETE_COMPLETELY)
+                MediaItemChange(item.id, action)
             )
 
             // Remove from displayed items
@@ -365,8 +379,9 @@ class EditPlaylistDialog : DialogFragment() {
                 editableMediaAdapter.notifyItemRemoved(position)
             }
 
-            Log.d(TAG, "Staged complete deletion: ${item.title}")
-            Toast.makeText(requireContext(), "Will be deleted when changes are saved", Toast.LENGTH_SHORT).show()
+            val msg = if (isOriginalOwner) "Will be deleted completely" else "Will be removed from this playlist"
+            Log.d(TAG, "Staged removal ($action): ${item.title}")
+            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
         }
 
         updateSaveButton()
@@ -431,6 +446,13 @@ class EditPlaylistDialog : DialogFragment() {
                                 failureCount++
                             }
                         }
+                        ChangeAction.REMOVE_FROM_PLAYLIST -> {
+                            if (removeItemFromPlaylist(change.mediaItemId)) {
+                                successCount++
+                            } else {
+                                failureCount++
+                            }
+                        }
                         ChangeAction.UPDATE_TAGS -> {
                             if (updateExistingItemTags(change.mediaItemId, change.newTags!!)) {
                                 successCount++
@@ -466,7 +488,7 @@ class EditPlaylistDialog : DialogFragment() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving changes: ${e.message}", e)
                 activity?.runOnUiThread {
-                    Toast.makeText(requireContext(), "Error saving changes", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), "Error saving changes", Toast.LENGTH_SHORT).show()
                     btnSaveChanges.isEnabled = true
                     btnSaveChanges.text = "Save Changes"
                     btnAddContent.isEnabled = true
@@ -531,6 +553,23 @@ class EditPlaylistDialog : DialogFragment() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error completely deleting item: ${e.message}", e)
+            false
+        }
+    }
+
+    private suspend fun removeItemFromPlaylist(itemId: String): Boolean {
+        return try {
+            val originalItem = originalMediaItems.find { it.id == itemId }
+            if (originalItem != null) {
+                when (originalItem) {
+                    is MediaItem.SongItem -> repository.removeSongFromPlaylist(playlistId, itemId).isSuccess
+                    is MediaItem.VideoItem -> repository.removeVideoFromPlaylist(playlistId, itemId).isSuccess
+                }
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing item from playlist: ${e.message}", e)
             false
         }
     }

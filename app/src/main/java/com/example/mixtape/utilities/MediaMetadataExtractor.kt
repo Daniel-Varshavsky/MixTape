@@ -166,7 +166,6 @@ object MediaMetadataExtractor {
             .replace(Regex("^\\d+\\s*"), "") // Remove leading numbers like "32 Rock" -> "Rock"
             .replace(Regex("\\s*\\(\\d+\\)"), "") // Remove numbered parentheses like "Rock (32)" -> "Rock"
             .trim()
-            .lowercase() // Convert to lowercase for consistency
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } // Capitalize first letter
     }
 

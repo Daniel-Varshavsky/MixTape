@@ -22,6 +22,10 @@ import com.example.mixtape.adapters.*
 import com.example.mixtape.model.*
 import com.example.mixtape.service.UnifiedPlayerService
 import com.example.mixtape.utilities.FirebaseRepository
+import com.google.android.flexbox.FlexDirection
+import com.google.android.flexbox.FlexWrap
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
 import com.google.firebase.auth.FirebaseAuth
@@ -186,12 +190,20 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         mediaRecycler.adapter = mediaAdapter
 
         val tagsRecycler = findViewById<RecyclerView>(R.id.tagsRecycler)
-        tagsRecycler.layoutManager = LinearLayoutManager(this)
+        tagsRecycler.layoutManager = FlexboxLayoutManager(this).apply {
+            flexDirection = FlexDirection.ROW
+            flexWrap = FlexWrap.WRAP
+            justifyContent = JustifyContent.FLEX_START
+        }
         manageableTagAdapter = ManageableTagAdapter { deleteTag(it) }
         tagsRecycler.adapter = manageableTagAdapter
 
         val filterRecycler = findViewById<RecyclerView>(R.id.filterTagsChipsRecycler)
-        filterRecycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        filterRecycler.layoutManager = FlexboxLayoutManager(this).apply {
+            flexDirection = FlexDirection.ROW
+            flexWrap = FlexWrap.WRAP
+            justifyContent = JustifyContent.FLEX_START
+        }
         filterTagChipAdapter = FilterTagChipAdapter { _, _ -> updateTagFilters() }
         filterRecycler.adapter = filterTagChipAdapter
     }
@@ -298,7 +310,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                     }
                     .onFailure { Toast.makeText(this@PlaylistActivity, "Error loading playlist: ${it.message}", Toast.LENGTH_LONG).show() }
             } catch (e: Exception) {
-                Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -638,7 +650,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
      */
     private fun launchUnifiedPlayerWithCustomOrder(customOrderItems: List<MediaItem>, startFromPosition: Int) {
         try {
-            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with custom order: \${customOrderItems.size} items, starting at position \$startFromPosition")
+            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with custom order: ${customOrderItems.size} items, starting at position $startFromPosition")
 
             // Convert ALL media items to files (both songs and videos)
             val allFiles = mutableListOf<File>()
@@ -688,14 +700,14 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                 putExtra("songName", allTitles[actualStartPosition]) // Keep "songName" for backward compatibility
             }
 
-            Log.d("PlaylistActivity", "Launching unified player with \${allFiles.size} media items (custom order)")
-            Log.d("PlaylistActivity", "Media types: \${mediaTypes.joinToString(\", \")}")
-            Log.d("PlaylistActivity", "Starting at position \$actualStartPosition: \${allTitles[actualStartPosition]} (\${mediaTypes[actualStartPosition]})")
+            Log.d("PlaylistActivity", "Launching unified player with ${allFiles.size} media items (custom order)")
+            Log.d("PlaylistActivity", "Media types: ${mediaTypes.joinToString(", ")}")
+            Log.d("PlaylistActivity", "Starting at position $actualStartPosition: ${allTitles[actualStartPosition]} (${mediaTypes[actualStartPosition]})")
 
             startActivity(intent)
 
         } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error launching unified player with custom order: \${e.message}", e)
+            Log.e("PlaylistActivity", "Error launching unified player with custom order: ${e.message}", e)
             Toast.makeText(this, "Error starting shuffled player", Toast.LENGTH_SHORT).show()
         }
     }
@@ -783,7 +795,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         // Apply Fisher-Yates shuffle algorithm
         fisherYatesShuffle(itemsToShuffle)
 
-        Log.d("PlaylistActivity", "Shuffled \${itemsToShuffle.size} items using Fisher-Yates algorithm")
+        Log.d("PlaylistActivity", "Shuffled ${itemsToShuffle.size} items using Fisher-Yates algorithm")
 
         // Launch UnifiedPlayerActivity with the shuffled playlist starting from position 0
         launchUnifiedPlayerWithCustomOrder(itemsToShuffle, 0)
@@ -812,6 +824,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         val dialog = EditPlaylistDialog.newInstance(
             playlistId       = currentPlaylist?.id ?: "",
             playlistName     = currentPlaylist?.name ?: "Playlist",
+            originalOwnerId  = currentPlaylist?.originalOwnerId ?: "",
             mediaItems       = mediaItemCopies,
             availableTags    = availableTags,
             onPlaylistUpdated = {

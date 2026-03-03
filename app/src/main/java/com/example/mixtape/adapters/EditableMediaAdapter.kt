@@ -52,6 +52,9 @@ class EditableMediaAdapter(
         }
 
         holder.title.text = item.title
+        // Enable marquee
+        holder.title.isSelected = true
+        
         holder.artist.text = item.artist
 
         // FIXED: Initialize original tags immediately when binding, not just when "Add Tags" is pressed

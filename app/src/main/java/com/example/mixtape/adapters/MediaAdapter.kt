@@ -40,6 +40,9 @@ class MediaAdapter(
         }
 
         holder.title.text = item.title
+        // Enable marquee
+        holder.title.isSelected = true
+        
         holder.artist.text = item.artist
         holder.album.text = item.album
         holder.duration.text = item.getDurationFormatted()

@@ -5,6 +5,7 @@ data class Playlist(
     val name: String = "",
     val description: String = "",
     val ownerId: String = "",
+    val originalOwnerId: String = "", // Track who originally created the playlist
     val songIds: List<String> = emptyList(),
     val videoIds: List<String> = emptyList(),
     val playlistTags: List<String> = emptyList(),
@@ -30,6 +31,7 @@ data class Playlist(
         name = "",
         description = "",
         ownerId = "",
+        originalOwnerId = "",
         songIds = emptyList(),
         videoIds = emptyList(),
         playlistTags = emptyList(),
@@ -50,4 +52,9 @@ data class Playlist(
     // Helper methods - use simple names that don't conflict
     fun isSharedWith(userId: String): Boolean = sharedWithUsers.contains(userId)
     fun hasShares(): Boolean = shared
+
+    // Check if this playlist was shared with the current user (copied from someone else)
+    fun isSharedTo(currentUserId: String): Boolean {
+        return originalOwnerId.isNotEmpty() && originalOwnerId != currentUserId
+    }
 }
