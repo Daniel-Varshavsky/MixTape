@@ -57,10 +57,10 @@ class EditableMediaAdapter(
         
         holder.artist.text = item.artist
 
-        // FIXED: Initialize original tags immediately when binding, not just when "Add Tags" is pressed
+        // Initialize original tags immediately when binding
         holder.originalTags = item.tags.toList()
 
-        setupCurrentTagsRecycler(holder, item, position)
+        setupCurrentTagsRecycler(holder, item)
         setupAvailableTagsRecycler(holder, item)
 
         // -----------------------------
@@ -74,8 +74,6 @@ class EditableMediaAdapter(
         // Toggle Add Tags Section
         // -----------------------------
         holder.btnAddTags.setOnClickListener {
-            // Note: originalTags is already set above during binding
-
             holder.btnAddTags.visibility = View.GONE
             holder.addTagsSection.visibility = View.VISIBLE
 
@@ -100,6 +98,9 @@ class EditableMediaAdapter(
             // Stage the changes by calling the callback
             onItemTagsChanged(item, item.tags.toList())
 
+            // Update originalTags so a subsequent "Add -> Cancel" session starts from this state
+            holder.originalTags = item.tags.toList()
+
             holder.btnAddTags.visibility = View.VISIBLE
             holder.addTagsSection.visibility = View.GONE
         }
@@ -109,7 +110,7 @@ class EditableMediaAdapter(
         holder.addTagsSection.visibility = View.GONE
     }
 
-    private fun setupCurrentTagsRecycler(holder: ViewHolder, item: MediaItem, position: Int) {
+    private fun setupCurrentTagsRecycler(holder: ViewHolder, item: MediaItem) {
         holder.currentTagsRecycler.layoutManager =
             LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
 
@@ -121,10 +122,13 @@ class EditableMediaAdapter(
             item.tags.remove(tagToRemove)
 
             if (wasOriginalTag) {
+                // Update originalTags baseline so Cancel doesn't bring it back
+                holder.originalTags = holder.originalTags.filter { it != tagToRemove }
+
                 // This was an original tag being removed - stage the change immediately
-                onItemTagsChanged(item, item.tags.toList())
+                // We stage the originalTags list to avoid accidentally staging unapplied "Add Tag" session changes
+                onItemTagsChanged(item, holder.originalTags.toList())
             }
-            // If it wasn't an original tag, it's just a UI revert (no staging needed)
 
             // Refresh current tags display
             holder.currentTagsAdapter?.notifyDataSetChanged()
