@@ -3,27 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- Media file access permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Media and Storage Permissions (Supporting Android 13+ Granular Access) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-
-    <!-- For Android 13+ (API 33+) granular media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- Storage access for older Android versions -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Required for MusicPlayerService to call startForeground() -->
+    <!-- Foreground Service Permissions (Required for persistent media playback) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required on API 34+ to specify the foreground service type -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
-    <!-- Required for BarVisualizerView (Android classifies the Visualizer API
-         as audio capture even for your own app's output on API 29+) -->
+    <!-- Required for the frequency visualizer (API 29+ considers Visualizer as audio capture) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
@@ -36,7 +30,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MixTape">
 
-        <!-- Login Activity - Main launcher activity -->
         <activity
             android:name=".LoginActivity"
             android:exported="true"
@@ -47,7 +40,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Register Activity - Can go back to Login -->
         <activity
             android:name=".RegisterActivity"
             android:exported="false"
@@ -58,13 +50,11 @@
                 android:value=".LoginActivity" />
         </activity>
 
-        <!-- Playlist Selection Activity - No parent (can't go back to login) -->
         <activity
             android:name=".PlaylistSelectionActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <!-- Playlist Activity - Can go back to Playlist Selection -->
         <activity
             android:name=".PlaylistActivity"
             android:exported="false"
@@ -75,6 +65,7 @@
                 android:value=".PlaylistSelectionActivity" />
         </activity>
 
+        <!-- Unified Player: Configured to handle orientation changes manually for video sync -->
         <activity
             android:name=".UnifiedPlayerActivity"
             android:exported="false"
@@ -86,33 +77,7 @@
                 android:value=".PlaylistActivity" />
         </activity>
 
-        <!-- Music Player Activity -->
-        <!--<activity
-            android:name=".MusicPlayerActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:parentActivityName=".PlaylistActivity">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value=".PlaylistActivity" />
-        </activity>
-
-        <activity
-            android:name=".VideoPlayerActivity"
-            android:exported="false"
-            android:screenOrientation="sensor"
-            android:configChanges="orientation|screenSize|keyboardHidden" >
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value=".PlaylistActivity" />
-        </activity>-->
-
-        <!--
-            MusicPlayerService — foregroundServiceType="mediaPlayback" is required:
-              • On API 29+ to call startForeground() at all for media services
-              • On API 34+ the FOREGROUND_SERVICE_MEDIA_PLAYBACK permission is also
-                required (declared above) or the service will be killed immediately
-        -->
+        <!-- Persistent background playback service -->
         <service
             android:name=".service.UnifiedPlayerService"
             android:foregroundServiceType="mediaPlayback"

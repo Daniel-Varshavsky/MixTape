@@ -34,7 +34,6 @@ import com.example.mixtape.ui.BarVisualizerView
 import java.io.File
 import kotlin.math.abs
 
-// UPDATED IMPORTS for Material Design components and ConstraintLayout
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -43,9 +42,9 @@ import com.google.android.material.textview.MaterialTextView
 import com.google.android.material.button.MaterialButton
 
 /**
- * UnifiedPlayerActivity - COMPLETE MODERNIZED VERSION
- *
- * UNIFIED PLAYER: Combines both audio and video playback in a single activity!
+ * UnifiedPlayerActivity is a comprehensive media playback interface that handles both
+ * audio and video content. It synchronizes with UnifiedPlayerService to provide 
+ * persistent background playback and manages specialized UI layouts for different media types.
  */
 @UnstableApi
 class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListener {
@@ -56,7 +55,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         private const val CONTROLS_HIDE_DELAY = 3000L
     }
 
-    // Views
+    // --- Audio Interface Views ---
     private lateinit var audioPlayerLayout: LinearLayoutCompat
     private lateinit var audioSongTitle: MaterialTextView
     private lateinit var audioTimeStart: MaterialTextView
@@ -65,7 +64,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private lateinit var visualizer: BarVisualizerView
     private lateinit var audioImageView: AppCompatImageView
 
-    // Video Layout Views
+    // --- Video Interface Views ---
     private lateinit var videoPlayerLayout: RelativeLayout
     private lateinit var videoView: VideoView
     private lateinit var controlsOverlay: RelativeLayout
@@ -78,7 +77,7 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private lateinit var videoTimeStop: MaterialTextView
     private lateinit var videoButtonsContainer: ConstraintLayout
 
-    // Shared button references
+    // --- Shared Playback Controls ---
     private lateinit var buttonPlay: MaterialButton
     private lateinit var buttonNext: MaterialButton
     private lateinit var buttonPrevious: MaterialButton
@@ -90,6 +89,11 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private var musicService: UnifiedPlayerService? = null
     private var isBound = false
 
+    /**
+     * Manages the lifecycle of the connection to UnifiedPlayerService.
+     * When connected, it either initializes a new playlist or synchronizes with 
+     * an existing session if the activity was recreated.
+     */
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val b = binder as UnifiedPlayerService.ServiceBinder
@@ -128,6 +132,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
     private var servicePreviouslyRunning = false
     private var isMovingForward = true
 
+    /**
+     * Updates the seekbar and timestamp labels every 500ms to reflect 
+     * the current playback progress of the background MediaPlayer.
+     */
     private val seekbarRunnable = object : Runnable {
         override fun run() {
             val service = musicService ?: return
@@ -221,6 +229,12 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         return super.onOptionsItemSelected(item)
     }
 
+    // --- PlayerListener Implementation ---
+
+    /**
+     * Triggered by the service when the track changes. 
+     * Resets UI state and prepares the correct layout (Audio vs Video).
+     */
     override fun onSongChanged(position: Int, songName: String) {
         currentMediaType = getCurrentMediaType()
         audioSongTitle.text = songName
@@ -266,21 +280,33 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         showCorrectLayoutForCurrentMedia()
     }
 
+    /**
+     * Crucial for video synchronization: Ensures the local VideoView matches 
+     * the position of the background audio playback managed by the service.
+     */
     override fun onVideoPositionUpdate(position: Int, duration: Int) {
         if (currentMediaType != "video") return
+        // Allow for small drifts, only seek if the gap is greater than 1 second
         if (abs(videoView.currentPosition - position) > 1000) videoView.seekTo(position)
+        
         videoSeekbar.max = duration
         videoSeekbar.progress = position
         videoTimeStart.text = createTime(position)
         videoTimeStop.text = createTime(duration)
+        
         if (musicService?.isPlaying() == true && !videoView.isPlaying) videoView.start()
     }
+
+    // --- UI Layout Management ---
 
     private fun showCorrectLayoutForCurrentMedia() {
         currentMediaType = getCurrentMediaType()
         if (currentMediaType == "video") showVideoLayout() else showAudioLayout()
     }
 
+    /**
+     * Switches the UI to the audio-focused player, enabling the frequency visualizer.
+     */
     private fun showAudioLayout() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         audioPlayerLayout.visibility = View.VISIBLE
@@ -296,6 +322,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         handler.postDelayed({ attachVisualizer() }, 200)
     }
 
+    /**
+     * Switches the UI to the video player, allowing for sensor-based orientation
+     * and initializing the VideoView URI.
+     */
     private fun showVideoLayout() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
         audioPlayerLayout.visibility = View.GONE
@@ -310,13 +340,15 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         supportActionBar?.hide()
         showVideoControls()
         playCurrentVideoVisual()
-        handleOrientationChange() // Force layout check for video buttons
+        handleOrientationChange() 
     }
 
     private fun getCurrentMediaType(): String {
         val currentPos = musicService?.getSongPosition() ?: startPosition
         return if (currentPos < (mediaTypes?.size ?: 0)) mediaTypes?.get(currentPos) ?: "audio" else "audio"
     }
+
+    // --- View Binding & Control Setup ---
 
     private fun findViews() {
         audioPlayerLayout = findViewById(R.id.audioPlayerLayout)
@@ -469,6 +501,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         })
     }
 
+    /**
+     * Resolves the media URI and prepares the VideoView.
+     * Supports both local storage and remote Firebase URLs.
+     */
     private fun playCurrentVideoVisual() {
         if (myMedia.isEmpty()) return
         val pos = musicService?.getSongPosition() ?: startPosition
@@ -511,6 +547,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         if (controlsVisible) handler.postDelayed(hideControlsRunnable, CONTROLS_HIDE_DELAY)
     }
 
+    /**
+     * Handles orientation changes by entering/exiting fullscreen and 
+     * adjusting the video button layout constraints.
+     */
     private fun handleOrientationChange() {
         val orientation = resources.configuration.orientation
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -521,18 +561,20 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
             buttonFullscreen.setIconResource(R.drawable.baseline_fullscreen_24)
         }
         
-        // Dynamically update video button positions
         if (currentMediaType == "video") {
             updateVideoButtonLayout(orientation)
         }
     }
 
+    /**
+     * Dynamically repositions video buttons based on device orientation to optimize
+     * screen real estate and reachability.
+     */
     private fun updateVideoButtonLayout(orientation: Int) {
         val constraintSet = ConstraintSet()
         constraintSet.clone(videoButtonsContainer)
 
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-            // PORTRAIT: Position Repeat below Rewind and Play
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.END)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
@@ -547,13 +589,9 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
             constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.END, R.id.videoButtonFastForward, ConstraintSet.START)
             constraintSet.connect(R.id.videoButtonAutoplay, ConstraintSet.TOP, R.id.videoButtonPlay, ConstraintSet.BOTTOM)
             
-            // Re-apply vertical centering or margins if needed
             constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, (12 * resources.displayMetrics.density).toInt())
             constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.TOP, (12 * resources.displayMetrics.density).toInt())
-
-            Log.d(TAG, "Video buttons set to Portrait layout")
         } else {
-            // LANDSCAPE: Restore horizontal row (Repeat to the left of Previous)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.START)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.TOP)
             constraintSet.clear(R.id.videoButtonRepeat, ConstraintSet.BOTTOM)
@@ -572,9 +610,6 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
             constraintSet.setMargin(R.id.videoButtonRepeat, ConstraintSet.TOP, 0)
             constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.END, (8 * resources.displayMetrics.density).toInt())
             constraintSet.setMargin(R.id.videoButtonAutoplay, ConstraintSet.TOP, 0)
-
-
-            Log.d(TAG, "Video buttons set to Landscape layout")
         }
 
         constraintSet.applyTo(videoButtonsContainer)
@@ -598,6 +633,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         controller.show(WindowInsetsCompat.Type.systemBars())
     }
 
+    /**
+     * Re-synchronizes the UI views with the current state of the UnifiedPlayerService.
+     * Essential for maintaining consistency after activity rotation or backgrounding.
+     */
     private fun syncUiToServiceState() {
         val service = musicService ?: return
         val pos = service.getSongPosition()
@@ -642,6 +681,10 @@ class UnifiedPlayerActivity : AppCompatActivity(), UnifiedPlayerService.PlayerLi
         buttonAutoplay.iconTint = resources.getColorStateList(tintColor, theme)
     }
 
+    /**
+     * Attaches the BarVisualizerView to the active audio session from the service.
+     * Requires the RECORD_AUDIO permission to be granted.
+     */
     private fun attachVisualizer() {
         if (currentMediaType != "audio") return
         try {

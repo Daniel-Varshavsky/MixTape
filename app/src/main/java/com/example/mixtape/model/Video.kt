@@ -1,35 +1,49 @@
 package com.example.mixtape.model
 
+/**
+ * Data model for a video file stored in Firestore.
+ * 
+ * Similar to the Song model, it tracks storage paths for both the video file 
+ * and its generated thumbnail. It also stores pre-formatted strings for 
+ * duration and file size to ensure smooth scrolling in lists.
+ */
 data class Video(
-    val id: String = "", // Firestore document ID
+    val id: String = "", 
     val title: String = "",
     val artist: String = "",
     val album: String = "",
     val durationSeconds: Int = 0,
     val tags: MutableList<String> = mutableListOf(),
 
-    // Firebase Storage references
-    val storageUrl: String = "", // Firebase Storage download URL
-    val storagePath: String = "", // Storage path like "users/userId/videos/videoId.mp4"
-    val thumbnailUrl: String = "", // Thumbnail image URL
-    val thumbnailPath: String = "", // Thumbnail storage path
+    // --- Firebase Storage References ---
+    /** The download URL for the video file. */
+    val storageUrl: String = "", 
+    
+    /** The internal Storage path for the video (e.g., "users/uid/videos/id.mp4"). */
+    val storagePath: String = "", 
+    
+    /** The download URL for the video's preview thumbnail. */
+    val thumbnailUrl: String = "", 
+    
+    /** The internal Storage path for the thumbnail image. */
+    val thumbnailPath: String = "", 
 
-    // Video-specific metadata
-    val uploadedBy: String = "", // User ID who uploaded this
-    val fileSize: Long = 0, // File size in bytes
-    val mimeType: String = "video/mp4", // video/mp4, video/webm, etc.
-    val resolution: String = "", // "720p", "1080p", etc.
-    val isPublic: Boolean = false, // Can other users access this video
+    // --- Media Metadata ---
+    val uploadedBy: String = "", 
+    val fileSize: Long = 0, 
+    val mimeType: String = "video/mp4", 
+    val resolution: String = "", 
+    val isPublic: Boolean = false, 
 
-    // Timestamps
+    // --- Timestamps ---
     val createdAt: com.google.firebase.Timestamp? = null,
     val updatedAt: com.google.firebase.Timestamp? = null,
 
-    // These computed fields are stored in Firestore - use these directly
+    // --- Display Helpers (Stored in Cloud) ---
     val durationFormatted: String = "",
     val fileSizeFormatted: String = ""
 ) {
-    // No-argument constructor for Firestore
+    /** Required no-argument constructor for Firestore. */
     constructor() : this(
         id = "",
         title = "",
@@ -52,19 +66,22 @@ data class Video(
         fileSizeFormatted = ""
     )
 
-    // Helper methods with idiomatic Kotlin using ifEmpty
+    /**
+     * Fallback formatter for duration.
+     */
     fun formatDuration(): String {
         return durationFormatted.ifEmpty {
-            // Fallback calculation if stored value is empty
             val minutes = durationSeconds / 60
             val seconds = durationSeconds % 60
             "$minutes:${seconds.toString().padStart(2, '0')}"
         }
     }
 
+    /**
+     * Fallback formatter for file size, supporting KB, MB, and GB.
+     */
     fun formatFileSize(): String {
         return fileSizeFormatted.ifEmpty {
-            // Fallback calculation if stored value is empty
             when {
                 fileSize < 1024 -> "${fileSize} B"
                 fileSize < 1024 * 1024 -> "${fileSize / 1024} KB"

@@ -17,6 +17,15 @@ import com.example.mixtape.ui.SharePlaylistDialog
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
+/**
+ * Adapter for the main dashboard, displaying a list of playlists.
+ * 
+ * Key Features:
+ * 1. Deep Deletion: When a playlist is deleted, it optionally triggers a recursive 
+ *    deletion of all its media items from both Firestore and Storage.
+ * 2. Dynamic Updates: Handles renaming and sharing through integrated dialogs.
+ * 3. Conditional UI: Shows/hides management buttons based on user permissions (owner vs shared).
+ */
 class PlaylistAdapter(
     private val playlists: MutableList<Playlist>,
     private val onPlaylistClick: (Playlist) -> Unit = {},
@@ -52,19 +61,15 @@ class PlaylistAdapter(
         holder.songs.text = "${playlist.songs} songs"
         holder.videos.text = "${playlist.videos} videos"
 
-        // Handle playlist click (open playlist)
         holder.itemView.setOnClickListener {
             onPlaylistClick(playlist)
         }
 
-        // Handle edit playlist name - only if fragmentManager is available
+        // --- Playlist Management Actions ---
+
         holder.btnEditPlaylistName.setOnClickListener {
             if (fragmentManager != null) {
-                val dialog = RenamePlaylistDialog.newInstance(
-                    playlist.id,
-                    playlist.name
-                ) { playlistId, newName ->
-                    // Update local data
+                val dialog = RenamePlaylistDialog.newInstance(playlist.id, playlist.name) { playlistId, newName ->
                     val index = playlists.indexOfFirst { it.id == playlistId }
                     if (index != -1) {
                         playlists[index] = playlists[index].copy(name = newName)
@@ -73,35 +78,24 @@ class PlaylistAdapter(
                     onPlaylistRenamed(playlistId, newName)
                 }
                 dialog.show(fragmentManager, "RenamePlaylist")
-            } else {
-                Toast.makeText(
-                    holder.itemView.context,
-                    "Rename functionality will be implemented later",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         }
 
-        // Handle share - only if fragmentManager is available
         holder.btnShare.setOnClickListener {
             if (fragmentManager != null) {
                 val dialog = SharePlaylistDialog.newInstance(playlist.id, playlist.name)
                 dialog.show(fragmentManager, "SharePlaylist")
-            } else {
-                Toast.makeText(
-                    holder.itemView.context,
-                    "Share functionality will be implemented later",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         }
 
-        // Handle delete
         holder.btnDelete.setOnClickListener {
             showDeleteConfirmation(holder.itemView.context, playlist, position)
         }
     }
 
+    /**
+     * Warning dialog explaining the permanent nature of the deletion.
+     */
     private fun showDeleteConfirmation(context: android.content.Context, playlist: Playlist, position: Int) {
         val dialogBuilder = AlertDialog.Builder(context)
 
@@ -111,12 +105,6 @@ class PlaylistAdapter(
             .setPositiveButton("Delete") { dialog, _ ->
                 if (lifecycleScope != null) {
                     deletePlaylistCompletely(playlist, position, context)
-                } else {
-                    Toast.makeText(
-                        context,
-                        "Delete functionality not available",
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
                 dialog.dismiss()
             }
@@ -126,64 +114,50 @@ class PlaylistAdapter(
             .show()
     }
 
+    /**
+     * Orchestrates a full cleanup of a playlist and its contents.
+     * Note: This is an expensive operation as it iterates through every media item.
+     */
     private fun deletePlaylistCompletely(playlist: Playlist, position: Int, context: android.content.Context) {
         lifecycleScope?.launch {
             try {
-                Log.d("PlaylistAdapter", "Deleting playlist with all content: ${playlist.id}")
-
-                // Step 1: Get all songs and videos in this playlist before deleting
+                // 1. Fetch metadata to identify what needs to be deleted from Storage
                 val result = repository.getPlaylistWithMedia(playlist.id)
 
                 result.onSuccess { (_, songs, videos) ->
                     var deletionErrors = 0
 
-                    // Step 2: Delete all songs completely (from database and storage)
+                    // 2. Clear songs from Storage and Firestore
                     for (song in songs) {
                         val songDeletionResult = repository.deleteSongCompletely(song.id)
-                        if (songDeletionResult.isFailure) {
-                            deletionErrors++
-                            Log.e("PlaylistAdapter", "Failed to delete song ${song.id}: ${songDeletionResult.exceptionOrNull()?.message}")
-                        }
+                        if (songDeletionResult.isFailure) deletionErrors++
                     }
 
-                    // Step 3: Delete all videos completely (from database and storage)
+                    // 3. Clear videos (including thumbnails) from Storage and Firestore
                     for (video in videos) {
                         val videoDeletionResult = repository.deleteVideoCompletely(video.id)
-                        if (videoDeletionResult.isFailure) {
-                            deletionErrors++
-                            Log.e("PlaylistAdapter", "Failed to delete video ${video.id}: ${videoDeletionResult.exceptionOrNull()?.message}")
-                        }
+                        if (videoDeletionResult.isFailure) deletionErrors++
                     }
 
-                    // Step 4: Delete the playlist itself
+                    // 4. Finally, remove the playlist document itself
                     val playlistDeletionResult = repository.deletePlaylist(playlist.id)
 
                     playlistDeletionResult.onSuccess {
-                        // Remove from local list
                         playlists.removeAt(position)
                         notifyItemRemoved(position)
                         notifyItemRangeChanged(position, playlists.size)
 
-                        // Show result to user
                         val message = if (deletionErrors == 0) {
-                            "Playlist '${playlist.name}' and all its content deleted successfully"
+                            "Playlist and content deleted successfully"
                         } else {
-                            "Playlist '${playlist.name}' deleted, but $deletionErrors media files failed to delete"
+                            "Playlist deleted, but $deletionErrors media files failed to delete"
                         }
 
                         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         onPlaylistDeleted(playlist.id)
-
-                    }.onFailure { exception ->
-                        Toast.makeText(context, "Error deleting playlist: ${exception.message}", Toast.LENGTH_LONG).show()
                     }
-
-                }.onFailure { exception ->
-                    Toast.makeText(context, "Error loading playlist content: ${exception.message}", Toast.LENGTH_LONG).show()
                 }
-
             } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                 Log.e("PlaylistAdapter", "Exception in deletePlaylistCompletely: ${e.message}", e)
             }
         }
@@ -195,10 +169,5 @@ class PlaylistAdapter(
         playlists.clear()
         playlists.addAll(newPlaylists)
         notifyDataSetChanged()
-    }
-
-    fun addPlaylist(playlist: Playlist) {
-        playlists.add(0, playlist) // Add at the beginning
-        notifyItemInserted(0)
     }
 }

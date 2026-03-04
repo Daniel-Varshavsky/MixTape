@@ -34,10 +34,18 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import java.io.File
 
+/**
+ * PlaylistActivity displays the contents of a specific playlist.
+ * It provides advanced features such as:
+ * - Dynamic filtering and sorting of media items (audio and video).
+ * - Global and playlist-specific tag management.
+ * - Integration with UnifiedPlayerService for persistent background playback.
+ * - A sidebar for detailed organization and account settings.
+ */
 @UnstableApi
 class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListener {
 
-    // ── Firebase / data ───────────────────────────────────────────────────────
+    // --- Firebase & Data State ---
     private lateinit var auth: FirebaseAuth
     private lateinit var repository: FirebaseRepository
     private lateinit var drawerLayout: DrawerLayout
@@ -59,22 +67,27 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     private var currentSortOrder = SortOrder.ASCENDING
     private var currentFilter    = FilterOptions()
 
-    // ── Playback control buttons ──────────────────────────────────────────────
+    // --- Playback Controls ---
     private lateinit var btnPlayAll: MaterialButton
     private lateinit var btnShuffle: MaterialButton
     private lateinit var btnRepeat: MaterialButton
     private lateinit var btnAutoplay: MaterialButton
 
-    // ── MusicPlayerService binding ────────────────────────────────────────────
+    // --- Service Binding ---
     private var musicService: UnifiedPlayerService? = null
     private var isBound = false
 
+    /**
+     * Manages the connection to the UnifiedPlayerService.
+     * Synchronizes local UI state with the service once a connection is established.
+     */
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             musicService = (binder as UnifiedPlayerService.ServiceBinder).getService()
             isBound = true
             musicService?.addListener(this@PlaylistActivity)
-            // Sync the repeat button to whatever the service already has
+            
+            // Sync UI state with the service's current configuration
             syncRepeatButton(musicService?.isRepeat() ?: false)
             syncAutoplayButton(musicService?.isAutoplay() ?: true)
         }
@@ -84,8 +97,6 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             musicService = null
         }
     }
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,10 +115,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         loadPlaylistData()
         setupBackPressHandler()
 
-        // Bind to MusicPlayerService if it is already running (user came from
-        // UnifiedPlayerActivity). BIND_AUTO_CREATE means Android will start the
-        // service if it isn't running yet — that's fine here because the service
-        // is cheap until initPlaylist() is called.
+        // Bind to the playback service to maintain session state across activities
         bindService(
             Intent(this, UnifiedPlayerService::class.java),
             serviceConnection,
@@ -122,7 +130,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             syncRepeatButton(musicService?.isRepeat() ?: false)
             syncAutoplayButton(musicService?.isAutoplay() ?: true)
         }
-        updateUserDisplay() // Refresh name if it was updated
+        updateUserDisplay() 
     }
 
     override fun onDestroy() {
@@ -131,18 +139,11 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         super.onDestroy()
     }
 
-    // ── PlayerListener callbacks ──────────────────────────────────────────────
+    // --- PlayerListener implementation ---
 
-    /** Not needed in the playlist screen. */
     override fun onSongChanged(position: Int, songName: String) {}
-
-    /** Not needed in the playlist screen. */
     override fun onPlaybackStateChanged(isPlaying: Boolean) {}
 
-    /**
-     * Called by MusicPlayerService whenever repeat is toggled from ANY screen
-     * (the player activity, the notification, or this screen).
-     */
     override fun onRepeatChanged(isRepeat: Boolean) {
         syncRepeatButton(isRepeat)
     }
@@ -151,19 +152,13 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         syncAutoplayButton(isAutoplay)
     }
 
-    /**
-     * Not needed in PlaylistActivity since it launches UnifiedPlayerActivity directly.
-     */
     override fun onRequestActivitySwitch(position: Int, mediaType: String) {
-        Log.d("PlaylistActivity", "Activity switch requested but not needed in PlaylistActivity")
+        Log.d("PlaylistActivity", "Activity switch requested but handled by the player")
     }
 
-    override fun onVideoPositionUpdate(position: Int, duration: Int) {
-        // PlaylistActivity doesn't need video position updates
-        // This is only used by UnifiedPlayerActivity for synchronization
-    }
+    override fun onVideoPositionUpdate(position: Int, duration: Int) {}
 
-    // ── Init helpers ──────────────────────────────────────────────────────────
+    // --- Initialization Helpers ---
 
     private fun initViews() {
         drawerLayout  = findViewById(R.id.drawerLayout)
@@ -188,23 +183,20 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         btnShuffle.setOnClickListener { shufflePlay() }
 
         btnRepeat.setOnClickListener {
-            if (isBound) {
-                // Delegate to the service — visual update arrives via onRepeatChanged()
-                musicService?.toggleRepeat()
-            } else {
-                Toast.makeText(this, "Start playing a song first to use repeat", Toast.LENGTH_SHORT).show()
-            }
+            if (isBound) musicService?.toggleRepeat()
+            else Toast.makeText(this, "Start playing to use repeat", Toast.LENGTH_SHORT).show()
         }
 
         btnAutoplay.setOnClickListener {
-            if (isBound) {
-                musicService?.toggleAutoplay()
-            } else {
-                Toast.makeText(this, "Start playing a song first to use autoplay", Toast.LENGTH_SHORT).show()
-            }
+            if (isBound) musicService?.toggleAutoplay()
+            else Toast.makeText(this, "Start playing to use autoplay", Toast.LENGTH_SHORT).show()
         }
     }
 
+    /**
+     * Sets up the main media list and the various tag clouds using FlexboxLayoutManager
+     * for a responsive, wrapping UI.
+     */
     private fun setupRecyclerViews() {
         val mediaRecycler = findViewById<RecyclerView>(R.id.mediaRecycler)
         mediaRecycler.layoutManager = LinearLayoutManager(this)
@@ -241,6 +233,9 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener { logout() }
     }
 
+    /**
+     * Refreshes the display name from the Firestore user profile.
+     */
     private fun updateUserDisplay() {
         val user = auth.currentUser
         val fallbackName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
@@ -253,9 +248,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                         userName.text = profile.displayName
                     }
                 }
-            } catch (e: Exception) {
-                // Ignore, fallback name already set
-            }
+            } catch (e: Exception) {}
         }
     }
 
@@ -285,7 +278,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         })
     }
 
-    // ── Playlist + tag loading ────────────────────────────────────────────────
+    // --- Data Loading & Management ---
 
     private fun loadPlaylistData() {
         val playlistId   = intent.getStringExtra("PLAYLIST_ID")
@@ -300,6 +293,10 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         loadPlaylistFromFirebase(playlistId)
     }
 
+    /**
+     * Fetches playlist metadata and all associated media items from Firebase.
+     * Triggers a UI update and re-applies any active filters once loaded.
+     */
     private fun loadPlaylistFromFirebase(playlistId: String) {
         lifecycleScope.launch {
             try {
@@ -314,39 +311,6 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
 
                         filteredMediaItems.clear()
                         filteredMediaItems.addAll(allMediaItems)
-
-                        // 🔍 DEBUG: Validate Firebase URLs
-                        Log.d("PlaylistActivity", "=== DEBUGGING FIREBASE URLs ===")
-                        if (songs.isNotEmpty()) {
-                            Log.d("PlaylistActivity", "Checking ${songs.size} songs...")
-                            songs.forEachIndexed { index, song ->
-                                Log.d("PlaylistActivity", "Song $index: '${song.title}'")
-                                Log.d("PlaylistActivity", "  URL: '${song.storageUrl}'")
-                                if (song.storageUrl.isBlank()) {
-                                    Log.e("PlaylistActivity", "  ❌ EMPTY URL!")
-                                } else if (!song.storageUrl.startsWith("http")) {
-                                    Log.e("PlaylistActivity", "  ❌ INVALID URL FORMAT!")
-                                } else {
-                                    Log.d("PlaylistActivity", "  ✅ URL looks valid")
-                                }
-                            }
-                        }
-
-                        if (videos.isNotEmpty()) {
-                            Log.d("PlaylistActivity", "Checking ${videos.size} videos...")
-                            videos.forEachIndexed { index, video ->
-                                Log.d("PlaylistActivity", "Video $index: '${video.title}'")
-                                Log.d("PlaylistActivity", "  URL: '${video.storageUrl}'")
-                                if (video.storageUrl.isBlank()) {
-                                    Log.e("PlaylistActivity", "  ❌ EMPTY URL!")
-                                } else if (!video.storageUrl.startsWith("http")) {
-                                    Log.e("PlaylistActivity", "  ❌ INVALID URL FORMAT!")
-                                } else {
-                                    Log.d("PlaylistActivity", "  ✅ URL looks valid")
-                                }
-                            }
-                        }
-                        Log.d("PlaylistActivity", "=== END URL DEBUG ===")
 
                         loadGlobalTags()
                         applySortAndFilter()
@@ -380,13 +344,17 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         }
     }
 
-    // ── Filtering & sorting ───────────────────────────────────────────────────
+    // --- Filtering & Sorting ---
 
     private fun updateTagFilters() {
         currentFilter = currentFilter.copy(tagFilter = filterTagChipAdapter.getSelectedTags().joinToString(", "))
         applySortAndFilter()
     }
 
+    /**
+     * Applies the current filter criteria and sort order to the media list.
+     * Filters by title, artist, album, tags, and duration.
+     */
     private fun applySortAndFilter() {
         var items = allMediaItems.toList()
 
@@ -423,7 +391,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
 
     private fun updateDisplay() { itemCount.text = "${filteredMediaItems.size} items" }
 
-    // ── Sidebar ───────────────────────────────────────────────────────────────
+    // --- Sidebar Components ---
 
     private fun setupSortSpinners() {
         val sortBySpinner = findViewById<Spinner>(R.id.spinnerSortBy)
@@ -531,7 +499,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     private fun deleteTag(tag: String) {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Delete Tag")
-            .setMessage("Are you sure you want to delete the tag '$tag'?\n\nThis will permanently remove it from your global tags and from all songs and videos that currently have this tag. This action cannot be undone.")
+            .setMessage("Are you sure you want to delete the tag '$tag'?\n\nThis will permanently remove it from your global tags and from all items. This action cannot be undone.")
             .setPositiveButton("Delete") { dialog, _ -> performTagDeletion(tag); dialog.dismiss() }
             .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
             .show()
@@ -563,31 +531,23 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
 
                         mediaAdapter.updateItems(filteredMediaItems)
 
-                        val msg = when {
-                            failures == 0 && toUpdate.isNotEmpty() -> "Tag '$tag' deleted and removed from ${toUpdate.size} items"
-                            failures == 0                           -> "Tag '$tag' deleted"
-                            else                                    -> "Tag '$tag' deleted, but failed to update $failures items"
-                        }
+                        val msg = if (failures == 0) "Tag '$tag' deleted successfully" else "Tag deleted, but failed to update some items"
                         Toast.makeText(this@PlaylistActivity, msg, Toast.LENGTH_SHORT).show()
-                        Log.d("PlaylistActivity", "Tag deletion complete: ${toUpdate.size - failures} successful, $failures failed")
                     }
                     .onFailure {
                         Toast.makeText(this@PlaylistActivity, "Error deleting tag: ${it.message}", Toast.LENGTH_SHORT).show()
-                        Log.e("PlaylistActivity", "Error deleting global tag: ${it.message}", it)
                     }
             } catch (e: Exception) {
                 Toast.makeText(this@PlaylistActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                Log.e("PlaylistActivity", "Exception in performTagDeletion: ${e.message}", e)
             }
         }
     }
 
-    // ── Player actions ────────────────────────────────────────────────────────
+    // --- Player Integration ---
 
     private fun playMediaItem(item: MediaItem) {
         val clickedPosition = filteredMediaItems.indexOf(item)
         if (clickedPosition != -1) {
-            // Launch UnifiedPlayerActivity for both audio and video content!
             launchUnifiedPlayer(clickedPosition)
         } else {
             Toast.makeText(this, "Media not found in current list", Toast.LENGTH_SHORT).show()
@@ -599,40 +559,36 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             Toast.makeText(this, "No items to play", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // Launch UnifiedPlayerActivity starting from position 0
         launchUnifiedPlayer(0)
     }
 
     /**
-     * UNIFIED: Launch UnifiedPlayerActivity with the current filtered playlist.
-     * Handles both audio and video content seamlessly in a single activity!
+     * Prepares and launches the UnifiedPlayerActivity.
+     * Extracts absolute file paths and metadata for all currently filtered items
+     * to ensure consistent playback order.
      */
     private fun launchUnifiedPlayer(startFromPosition: Int) {
         try {
-            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with ${filteredMediaItems.size} items, starting at position $startFromPosition")
+            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with ${filteredMediaItems.size} items")
 
-            // Convert ALL media items to files (both songs and videos)
             val allFiles = mutableListOf<File>()
             val allTitles = mutableListOf<String>()
             val allArtists = mutableListOf<String>()
-            val mediaTypes = mutableListOf<String>() // Track what type each file is
+            val mediaTypes = mutableListOf<String>()
 
             filteredMediaItems.forEach { mediaItem ->
                 when (mediaItem) {
                     is MediaItem.SongItem -> {
-                        val file = convertSongToFile(mediaItem.song)
-                        if (file != null) {
-                            allFiles.add(file)
+                        convertSongToFile(mediaItem.song)?.let {
+                            allFiles.add(it)
                             allTitles.add(mediaItem.song.title)
                             allArtists.add(mediaItem.song.artist)
                             mediaTypes.add("audio")
                         }
                     }
                     is MediaItem.VideoItem -> {
-                        val file = convertVideoToFile(mediaItem.video)
-                        if (file != null) {
-                            allFiles.add(file)
+                        convertVideoToFile(mediaItem.video)?.let {
+                            allFiles.add(it)
                             allTitles.add(mediaItem.video.title)
                             allArtists.add(mediaItem.video.artist)
                             mediaTypes.add("video")
@@ -642,27 +598,21 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             }
 
             if (allFiles.isEmpty()) {
-                Toast.makeText(this, "No playable media files found", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "No playable media found", Toast.LENGTH_SHORT).show()
                 return
             }
 
-            // Determine the starting position in the combined list
             val actualStartPosition = startFromPosition.coerceIn(0, allFiles.size - 1)
 
-            // Create intent for UnifiedPlayerActivity
             val intent = Intent(this, UnifiedPlayerActivity::class.java).apply {
                 val filePaths = allFiles.map { it.absolutePath }
-                putExtra("songs", ArrayList(filePaths)) // Keep "songs" for backward compatibility
-                putExtra("songTitles", ArrayList(allTitles)) // Keep "songTitles" for backward compatibility
-                putExtra("songArtists", ArrayList(allArtists)) // Keep "songArtists" for backward compatibility
-                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types for layout switching
+                putExtra("songs", ArrayList(filePaths))
+                putExtra("songTitles", ArrayList(allTitles))
+                putExtra("songArtists", ArrayList(allArtists))
+                putExtra("mediaTypes", ArrayList(mediaTypes))
                 putExtra("pos", actualStartPosition)
-                putExtra("songName", allTitles[actualStartPosition]) // Keep "songName" for backward compatibility
+                putExtra("songName", allTitles[actualStartPosition])
             }
-
-            Log.d("PlaylistActivity", "Launching unified player with ${allFiles.size} media items")
-            Log.d("PlaylistActivity", "Media types: ${mediaTypes.joinToString(", ")}")
-            Log.d("PlaylistActivity", "Starting at position $actualStartPosition: ${allTitles[actualStartPosition]} (${mediaTypes[actualStartPosition]})")
 
             startActivity(intent)
 
@@ -673,54 +623,48 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
     }
 
     /**
-     * Fisher-Yates shuffle algorithm implementation
-     * This is considered one of the best shuffling algorithms as it produces
-     * a uniformly random permutation of the array.
-     *
-     * Time Complexity: O(n)
-     * Space Complexity: O(1) - in-place shuffling
+     * Shuffles the current filtered items and launches the player.
+     * Uses the Fisher-Yates algorithm for uniform distribution.
      */
+    private fun shufflePlay() {
+        if (filteredMediaItems.isEmpty()) {
+            Toast.makeText(this, "No items to shuffle", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val itemsToShuffle = filteredMediaItems.toMutableList()
+        fisherYatesShuffle(itemsToShuffle)
+        launchUnifiedPlayerWithCustomOrder(itemsToShuffle, 0)
+    }
+
     private fun fisherYatesShuffle(items: MutableList<MediaItem>) {
         for (i in items.size - 1 downTo 1) {
-            // Pick a random index from 0 to i (inclusive)
             val j = (Math.random() * (i + 1)).toInt()
-            // Swap items[i] and items[j]
             val temp = items[i]
             items[i] = items[j]
             items[j] = temp
         }
     }
 
-    /**
-     * Launch UnifiedPlayerActivity with a custom order of media items.
-     * This is used for shuffled playback where we want to play items in a specific order
-     * that differs from the filtered list.
-     */
     private fun launchUnifiedPlayerWithCustomOrder(customOrderItems: List<MediaItem>, startFromPosition: Int) {
         try {
-            Log.d("PlaylistActivity", "Launching UnifiedPlayerActivity with custom order: ${customOrderItems.size} items, starting at position $startFromPosition")
-
-            // Convert ALL media items to files (both songs and videos)
             val allFiles = mutableListOf<File>()
             val allTitles = mutableListOf<String>()
             val allArtists = mutableListOf<String>()
-            val mediaTypes = mutableListOf<String>() // Track what type each file is
+            val mediaTypes = mutableListOf<String>()
 
             customOrderItems.forEach { mediaItem ->
                 when (mediaItem) {
                     is MediaItem.SongItem -> {
-                        val file = convertSongToFile(mediaItem.song)
-                        if (file != null) {
-                            allFiles.add(file)
+                        convertSongToFile(mediaItem.song)?.let {
+                            allFiles.add(it)
                             allTitles.add(mediaItem.song.title)
                             allArtists.add(mediaItem.song.artist)
                             mediaTypes.add("audio")
                         }
                     }
                     is MediaItem.VideoItem -> {
-                        val file = convertVideoToFile(mediaItem.video)
-                        if (file != null) {
-                            allFiles.add(file)
+                        convertVideoToFile(mediaItem.video)?.let {
+                            allFiles.add(it)
                             allTitles.add(mediaItem.video.title)
                             allArtists.add(mediaItem.video.artist)
                             mediaTypes.add("video")
@@ -729,132 +673,46 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                 }
             }
 
-            if (allFiles.isEmpty()) {
-                Toast.makeText(this, "No playable media files found", Toast.LENGTH_SHORT).show()
-                return
-            }
+            if (allFiles.isEmpty()) return
 
-            // Determine the starting position in the combined list
-            val actualStartPosition = startFromPosition.coerceIn(0, allFiles.size - 1)
-
-            // Create intent for UnifiedPlayerActivity
             val intent = Intent(this, UnifiedPlayerActivity::class.java).apply {
                 val filePaths = allFiles.map { it.absolutePath }
-                putExtra("songs", ArrayList(filePaths)) // Keep "songs" for backward compatibility
-                putExtra("songTitles", ArrayList(allTitles)) // Keep "songTitles" for backward compatibility
-                putExtra("songArtists", ArrayList(allArtists)) // Keep "songArtists" for backward compatibility
-                putExtra("mediaTypes", ArrayList(mediaTypes)) // NEW: Track media types for layout switching
-                putExtra("pos", actualStartPosition)
-                putExtra("songName", allTitles[actualStartPosition]) // Keep "songName" for backward compatibility
+                putExtra("songs", ArrayList(filePaths))
+                putExtra("songTitles", ArrayList(allTitles))
+                putExtra("songArtists", ArrayList(allArtists))
+                putExtra("mediaTypes", ArrayList(mediaTypes))
+                putExtra("pos", startFromPosition)
+                putExtra("songName", allTitles[startFromPosition])
             }
-
-            Log.d("PlaylistActivity", "Launching unified player with ${allFiles.size} media items (custom order)")
-            Log.d("PlaylistActivity", "Media types: ${mediaTypes.joinToString(", ")}")
-            Log.d("PlaylistActivity", "Starting at position $actualStartPosition: ${allTitles[actualStartPosition]} (${mediaTypes[actualStartPosition]})")
-
             startActivity(intent)
-
-        } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error launching unified player with custom order: ${e.message}", e)
-            Toast.makeText(this, "Error starting shuffled player", Toast.LENGTH_SHORT).show()
-        }
+        } catch (e: Exception) {}
     }
 
     /**
-     * Convert a Song object to a File object.
-     * Creates a placeholder file with Firebase Storage URL.
-     * Filename doesn't matter since we pass titles separately now.
+     * Creates a temporary placeholder file containing the download URL.
+     * The service will read this URL to stream the content from Firebase.
      */
     private fun convertSongToFile(song: Song): File? {
         return try {
-            // Create a cache directory for songs if it doesn't exist
-            val cacheDir = File(cacheDir, "songs")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
-            }
-
-            // Simple filename using just the song ID since we pass titles separately
-            val fileName = "${song.id}.mp3"
-            val file = File(cacheDir, fileName)
-
-            // Create a placeholder file that contains the Firebase storage URL
-            if (!file.exists()) {
-                file.writeText(song.storageUrl) // Store the download URL in the file
-            }
-
-            Log.d("PlaylistActivity", "Created file: ${file.name} for song: ${song.title}")
+            val cacheDir = File(cacheDir, "songs").apply { if (!exists()) mkdirs() }
+            val file = File(cacheDir, "${song.id}.mp3")
+            if (!file.exists()) file.writeText(song.storageUrl)
             file
-        } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error converting song to file: ${e.message}", e)
-            null
-        }
+        } catch (e: Exception) { null }
     }
 
-    /**
-     * Convert a Video object to a File object.
-     * Creates a placeholder file with Firebase Storage URL (same approach as songs).
-     */
     private fun convertVideoToFile(video: Video): File? {
         return try {
-            // Validate the storage URL first
-            if (video.storageUrl.isBlank()) {
-                Log.e("PlaylistActivity", "Video has empty storage URL: ${video.title}")
-                return null
-            }
-
-            if (!video.storageUrl.startsWith("http://") && !video.storageUrl.startsWith("https://")) {
-                Log.e("PlaylistActivity", "Video has invalid storage URL format: ${video.storageUrl}")
-                return null
-            }
-
-            // Create a cache directory for videos if it doesn't exist
-            val cacheDir = File(cacheDir, "videos")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
-            }
-
-            // Simple filename using just the video ID
-            val fileName = "${video.id}.mp4"
-            val file = File(cacheDir, fileName)
-
-            // Create a placeholder file that contains the Firebase storage URL
-            if (!file.exists()) {
-                file.writeText(video.storageUrl) // Store the download URL in the file
-            }
-
-            Log.d("PlaylistActivity", "Created file: ${file.name} for video: ${video.title}")
-            Log.d("PlaylistActivity", "Video storage URL: ${video.storageUrl}")
+            if (video.storageUrl.isBlank()) return null
+            val cacheDir = File(cacheDir, "videos").apply { if (!exists()) mkdirs() }
+            val file = File(cacheDir, "${video.id}.mp4")
+            if (!file.exists()) file.writeText(video.storageUrl)
             file
-        } catch (e: Exception) {
-            Log.e("PlaylistActivity", "Error converting video to file: ${e.message}", e)
-            null
-        }
+        } catch (e: Exception) { null }
     }
 
-    private fun shufflePlay() {
-        if (filteredMediaItems.isEmpty()) {
-            Toast.makeText(this, "No items to shuffle", Toast.LENGTH_SHORT).show()
-            return
-        }
+    // --- Button Synchronization ---
 
-        // Create a copy of filtered items to shuffle (so we don't modify the original list)
-        val itemsToShuffle = filteredMediaItems.toMutableList()
-
-        // Apply Fisher-Yates shuffle algorithm
-        fisherYatesShuffle(itemsToShuffle)
-
-        Log.d("PlaylistActivity", "Shuffled ${itemsToShuffle.size} items using Fisher-Yates algorithm")
-
-        // Launch UnifiedPlayerActivity with the shuffled playlist starting from position 0
-        launchUnifiedPlayerWithCustomOrder(itemsToShuffle, 0)
-    }
-
-    // ── Repeat visual sync ────────────────────────────────────────────────────
-
-    /**
-     * Tints btnRepeat red when repeat is on, white when off.
-     * This is purely visual — it never calls toggleRepeat() itself.
-     */
     private fun syncRepeatButton(isRepeat: Boolean) {
         val tintColor = if (isRepeat) R.color.red else R.color.white
         btnRepeat.iconTint = resources.getColorStateList(tintColor, theme)
@@ -865,7 +723,7 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
         btnAutoplay.iconTint = resources.getColorStateList(tintColor, theme)
     }
 
-    // ── Edit playlist dialog ──────────────────────────────────────────────────
+    // --- Dialogs ---
 
     private fun openEditPlaylistDialog() {
         val mediaItemCopies = allMediaItems.map { item ->
@@ -881,7 +739,6 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
             mediaItems       = mediaItemCopies,
             availableTags    = availableTags,
             onPlaylistUpdated = {
-                Log.d("PlaylistActivity", "Refreshing playlist data after dialog closed")
                 currentPlaylist?.id?.let { loadPlaylistFromFirebase(it) }
             }
         )
@@ -896,12 +753,8 @@ class PlaylistActivity : AppCompatActivity(), UnifiedPlayerService.PlayerListene
                         availableTags.clear(); availableTags.addAll(tags.sorted())
                         manageableTagAdapter.updateTags(availableTags)
                         filterTagChipAdapter.updateTags(availableTags)
-                        Log.d("PlaylistActivity", "Global tags refreshed: ${availableTags.size} tags")
                     }
-                    .onFailure { Log.e("PlaylistActivity", "Error refreshing global tags: ${it.message}") }
-            } catch (e: Exception) {
-                Log.e("PlaylistActivity", "Exception refreshing global tags: ${e.message}")
-            }
+            } catch (e: Exception) {}
         }
     }
 }

@@ -12,6 +12,11 @@ import com.example.mixtape.utilities.FirebaseRepository
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
+/**
+ * RenamePlaylistDialog provides a simple interface for users to change the name
+ * of an existing playlist. It handles the Firestore update and notifies the 
+ * parent activity upon success.
+ */
 class RenamePlaylistDialog : DialogFragment() {
 
     private lateinit var repository: FirebaseRepository
@@ -20,6 +25,9 @@ class RenamePlaylistDialog : DialogFragment() {
     private var onPlaylistRenamed: ((String, String) -> Unit)? = null
 
     companion object {
+        /**
+         * Factory method to create a new instance with the required metadata and a completion callback.
+         */
         fun newInstance(
             playlistId: String, 
             currentName: String, 
@@ -37,6 +45,7 @@ class RenamePlaylistDialog : DialogFragment() {
         val dialog = Dialog(requireContext())
         dialog.setContentView(R.layout.dialog_rename_playlist)
 
+        // Set dialog width to 90% of screen width
         dialog.window?.setLayout(
             (requireContext().resources.displayMetrics.widthPixels * 0.9).toInt(),
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -63,13 +72,11 @@ class RenamePlaylistDialog : DialogFragment() {
             } else if (newName.isEmpty()) {
                 input.error = "Playlist name required"
             } else {
-                dismiss() // Name unchanged
+                dismiss() // Name unchanged, nothing to save
             }
         }
 
-        dialog.show()
-
-        // Focus the input and show keyboard
+        // Auto-focus the input and display the soft keyboard for immediate user entry
         input.requestFocus()
         val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) 
                 as android.view.inputmethod.InputMethodManager
@@ -78,6 +85,9 @@ class RenamePlaylistDialog : DialogFragment() {
         return dialog
     }
 
+    /**
+     * Executes the rename operation in Firebase and triggers the callback if successful.
+     */
     private fun renamePlaylist(newName: String, saveButton: MaterialButton) {
         saveButton.isEnabled = false
         saveButton.text = "Saving..."
@@ -88,23 +98,15 @@ class RenamePlaylistDialog : DialogFragment() {
                 val result = repository.updatePlaylistName(playlistId, newName)
                 
                 result.onSuccess {
-                    saveButton.isEnabled = true
-                    saveButton.text = "Save"
-                    
                     Toast.makeText(
                         requireContext(),
                         "Playlist renamed to '$newName'",
                         Toast.LENGTH_SHORT
                     ).show()
                     
-                    // Notify parent activity
                     onPlaylistRenamed?.invoke(playlistId, newName)
-                    
                     dismiss()
                 }.onFailure { exception ->
-                    saveButton.isEnabled = true
-                    saveButton.text = "Save"
-                    
                     Toast.makeText(
                         requireContext(),
                         "Error renaming playlist: ${exception.message}",
@@ -112,14 +114,14 @@ class RenamePlaylistDialog : DialogFragment() {
                     ).show()
                 }
             } catch (e: Exception) {
-                saveButton.isEnabled = true
-                saveButton.text = "Save"
-                
                 Toast.makeText(
                     requireContext(),
                     "Error: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+            } finally {
+                saveButton.isEnabled = true
+                saveButton.text = "Save"
             }
         }
     }

@@ -11,10 +11,9 @@ import android.util.Log
 import android.view.View
 
 /**
- * A drop-in bar visualizer that uses Android's built-in [Visualizer] API —
- * no third-party library required.
- *
- * Updated with better error handling for security exceptions and permission issues.
+ * BarVisualizerView is a custom View that renders a frequency-based bar visualizer
+ * using the Android Visualizer API. It processes FFT (Fast Fourier Transform) data
+ * from a MediaPlayer session to create a dynamic animation.
  */
 class BarVisualizerView @JvmOverloads constructor(
     context: Context,
@@ -26,29 +25,24 @@ class BarVisualizerView @JvmOverloads constructor(
         private const val TAG = "BarVisualizerView"
     }
 
-    // ── Tuneable appearance constants ─────────────────────────────────────────
+    // --- Visual Configuration ---
     private val barColor  = Color.parseColor("#FF362E")
-    private val barCount  = 64          // number of bars drawn
-    private val barRadiusPx = 6f       // rounded-corner radius on each bar
-    private val gapRatio  = 0.35f      // fraction of slot width used for the gap
+    private val barCount  = 64          // Total number of vertical bars to draw
+    private val barRadiusPx = 6f       // Corner radius for the rounded bars
+    private val gapRatio  = 0.35f      // Percentage of slot width dedicated to spacing between bars
 
-    // ── Paint ─────────────────────────────────────────────────────────────────
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = barColor
         style = Paint.Style.FILL
     }
 
-    // ── Visualizer state ─────────────────────────────────────────────────────
     private var visualizer: Visualizer? = null
     private var fftBytes: ByteArray = ByteArray(0)
     private val rect = RectF()
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
     /**
-     * Attach to the MediaPlayer's audio session.
-     * Call this after the service connects and the player has started.
-     * Safe to call multiple times — releases the old instance first.
+     * Attaches the visualizer to a specific audio session.
+     * @param sessionId The audio session ID from MediaPlayer. If -1, the visualizer is released.
      */
     fun setAudioSessionId(sessionId: Int) {
         release()
@@ -58,31 +52,31 @@ class BarVisualizerView @JvmOverloads constructor(
         }
 
         try {
-            Log.d(TAG, "Attempting to create Visualizer with session ID: $sessionId")
+            Log.d(TAG, "Initializing Visualizer for session: $sessionId")
 
             visualizer = Visualizer(sessionId).apply {
-                // Check if Visualizer is supported
                 val captureSizeRange = Visualizer.getCaptureSizeRange()
                 if (captureSizeRange.isEmpty()) {
-                    Log.e(TAG, "Visualizer not supported - no capture size range")
+                    Log.e(TAG, "Visualizer API not supported on this device.")
                     return@setAudioSessionId
                 }
 
+                // Use the maximum supported capture size for better resolution
                 captureSize = captureSizeRange[1]
-                Log.d(TAG, "Capture size set to: $captureSize")
 
                 setDataCaptureListener(
                     object : Visualizer.OnDataCaptureListener {
                         override fun onWaveFormDataCapture(v: Visualizer, waveform: ByteArray, sr: Int) {
-                            // Not used
+                            // Waveform data is ignored in favor of frequency-domain (FFT) data
                         }
 
                         override fun onFftDataCapture(v: Visualizer, fft: ByteArray, sr: Int) {
                             try {
+                                // Capture a copy of the frequency data and trigger a redraw
                                 fftBytes = fft.copyOf()
-                                post { invalidate() } // Update UI on main thread
+                                post { invalidate() } 
                             } catch (e: Exception) {
-                                Log.w(TAG, "Error in FFT data capture: ${e.message}")
+                                Log.w(TAG, "Error processing FFT capture: ${e.message}")
                             }
                         }
                     },
@@ -92,42 +86,31 @@ class BarVisualizerView @JvmOverloads constructor(
                 )
 
                 enabled = true
-                Log.d(TAG, "Visualizer enabled successfully")
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception creating Visualizer - check RECORD_AUDIO permission: ${e.message}")
-        } catch (e: UnsupportedOperationException) {
-            Log.e(TAG, "Visualizer not supported on this device: ${e.message}")
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "Illegal state when creating Visualizer: ${e.message}")
-        } catch (e: RuntimeException) {
-            Log.e(TAG, "Runtime exception creating Visualizer: ${e.message}")
+            Log.e(TAG, "Permission denied for RECORD_AUDIO: ${e.message}")
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error creating Visualizer: ${e.message}", e)
+            Log.e(TAG, "Failed to initialize visualizer: ${e.message}", e)
         }
     }
 
     /**
-     * Release the underlying [Visualizer]. Call from Activity.onDestroy().
+     * Releases system resources used by the Visualizer. 
+     * Must be called when the activity or fragment is destroyed.
      */
     fun release() {
         try {
             visualizer?.let { viz ->
-                if (viz.enabled) {
-                    viz.enabled = false
-                }
+                if (viz.enabled) viz.enabled = false
                 viz.release()
-                Log.d(TAG, "Visualizer released successfully")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Error releasing Visualizer: ${e.message}")
+            Log.w(TAG, "Error during resource cleanup: ${e.message}")
         } finally {
             visualizer = null
             fftBytes = ByteArray(0)
         }
     }
-
-    // ── Drawing ───────────────────────────────────────────────────────────────
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -136,32 +119,32 @@ class BarVisualizerView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w == 0f || h == 0f) return
 
-        val bytes = fftBytes
-        if (bytes.isEmpty()) {
+        if (fftBytes.isEmpty()) {
             drawSilence(canvas, w, h)
             return
         }
 
+        // Calculate dimensions based on view width and bar configuration
         val slotW   = w / barCount
         val barW    = slotW * (1f - gapRatio)
         val halfGap = (slotW - barW) / 2f
 
-        // FFT output is complex pairs; magnitude of each bin = sqrt(re²+im²).
-        // We only use the first (captureSize/2) bins — they map to 0..Nyquist.
-        val usableBins = (bytes.size / 2).coerceAtLeast(1)
+        // FFT output contains complex pairs; magnitude = sqrt(re^2 + im^2)
+        // We only map the lower half of the FFT bins as they contain most musical info
+        val usableBins = (fftBytes.size / 2).coerceAtLeast(1)
 
         for (i in 0 until barCount) {
-            // Map bar index → FFT bin (log-ish spacing feels more musical)
+            // Map the bar index to an FFT bin with a slight bias towards lower frequencies
             val binIndex = (i.toFloat() / barCount * usableBins).toInt().coerceIn(0, usableBins - 1)
-            val re = bytes[binIndex * 2].toInt()
-            val im = if (binIndex * 2 + 1 < bytes.size) bytes[binIndex * 2 + 1].toInt() else 0
+            val re = fftBytes[binIndex * 2].toInt()
+            val im = if (binIndex * 2 + 1 < fftBytes.size) fftBytes[binIndex * 2 + 1].toInt() else 0
             val magnitude = Math.sqrt((re * re + im * im).toDouble()).toFloat()
 
-            // Normalise to [0..1]; FFT byte values go up to ~128
-            val normalised = (magnitude / 128f).coerceIn(0f, 1f)
+            // Normalize magnitude (FFT bytes typically range up to 128)
+            val normalized = (magnitude / 128f).coerceIn(0f, 1f)
 
-            // Minimum bar height so there's always a visual tick
-            val barH = (normalised * h).coerceAtLeast(4f)
+            // Calculate vertical position (bars grow upwards from the bottom)
+            val barH = (normalized * h).coerceAtLeast(4f) // Ensure bars have a minimum visible height
 
             val left   = i * slotW + halfGap
             val right  = left + barW
@@ -173,7 +156,9 @@ class BarVisualizerView @JvmOverloads constructor(
         }
     }
 
-    /** Draw flat stub bars when there's no audio data yet. */
+    /**
+     * Renders a static baseline when no audio is being processed.
+     */
     private fun drawSilence(canvas: Canvas, w: Float, h: Float) {
         val slotW   = w / barCount
         val barW    = slotW * (1f - gapRatio)

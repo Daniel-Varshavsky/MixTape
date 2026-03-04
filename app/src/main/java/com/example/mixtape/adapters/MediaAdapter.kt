@@ -13,6 +13,14 @@ import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 
+/**
+ * Standard adapter for displaying media items (Songs/Videos) in a list.
+ * 
+ * Key Features:
+ * 1. Polymorphic Support: Handles both SongItem and VideoItem models seamlessly.
+ * 2. Visual Tags: Uses a nested RecyclerView with FlexboxLayoutManager to display tags as chips.
+ * 3. Marquee Support: Title TextView is configured to scroll (marquee) if the text is too long.
+ */
 class MediaAdapter(
     private var mediaItems: List<MediaItem>,
     private val onItemClick: (MediaItem) -> Unit
@@ -36,21 +44,20 @@ class MediaAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = mediaItems[position]
 
-        // Set icon based on media type
+        // Dynamic Icon assignment
         when (item) {
             is MediaItem.SongItem -> holder.icon.setImageResource(R.drawable.sharp_music_note_2_24)
             is MediaItem.VideoItem -> holder.icon.setImageResource(R.drawable.outline_videocam_24)
         }
 
         holder.title.text = item.title
-        // Enable marquee
-        holder.title.isSelected = true
+        holder.title.isSelected = true // Trigger marquee
         
         holder.artist.text = item.artist
         holder.album.text = item.album
         holder.duration.text = item.getDurationFormatted()
 
-        // Set up tags RecyclerView
+        // Nested Tags Layout Setup
         holder.tagsRecycler.layoutManager = FlexboxLayoutManager(holder.itemView.context).apply {
             flexDirection = FlexDirection.ROW
             flexWrap = FlexWrap.WRAP
@@ -58,7 +65,6 @@ class MediaAdapter(
         }
         holder.tagsRecycler.adapter = TagChipAdapter(item.tags)
 
-        // Handle click
         holder.itemView.setOnClickListener {
             onItemClick(item)
         }

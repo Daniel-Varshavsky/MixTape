@@ -17,6 +17,11 @@ import com.google.android.material.textview.MaterialTextView
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
+/**
+ * PlaylistSelectionActivity is the landing screen after a successful login.
+ * It displays a list of the user's personal and shared playlists, allowing for 
+ * creation of new ones or navigation into existing ones.
+ */
 class PlaylistSelectionActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
@@ -32,11 +37,10 @@ class PlaylistSelectionActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playlist_selection)
 
-        // Initialize Firebase Auth and Repository
         auth = FirebaseAuth.getInstance()
         repository = FirebaseRepository()
 
-        // Check if user is logged in
+        // Security check: Redirect to login if the session has expired
         if (auth.currentUser == null) {
             redirectToLogin()
             return
@@ -48,8 +52,7 @@ class PlaylistSelectionActivity : AppCompatActivity() {
         setupRecyclerView()
         loadPlaylists()
 
-        val addButton = findViewById<Button>(R.id.btnAddPlaylist)
-        addButton.setOnClickListener {
+        findViewById<Button>(R.id.btnAddPlaylist).setOnClickListener {
             showAddPlaylistDialog()
         }
     }
@@ -66,13 +69,15 @@ class PlaylistSelectionActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Fetches and displays the user's name. It first uses the local Firebase user
+     * for immediate feedback, then updates with the Firestore profile for accuracy.
+     */
     private fun updateUserDisplay() {
-        // Use local Auth as immediate fallback
         val user = auth.currentUser
         val fallbackName = user?.displayName ?: user?.email?.substringBefore("@") ?: "User"
         subtitleText.text = "Welcome back, $fallbackName!"
 
-        // Fetch official profile from Firestore for accuracy
         lifecycleScope.launch {
             try {
                 repository.getUserProfile().onSuccess { profile ->
@@ -80,12 +85,14 @@ class PlaylistSelectionActivity : AppCompatActivity() {
                         subtitleText.text = "Welcome back, ${profile.displayName}!"
                     }
                 }
-            } catch (e: Exception) {
-                // Silently fail, fallback is already set
-            }
+            } catch (e: Exception) {}
         }
     }
 
+    /**
+     * Configures the RecyclerView with a custom adapter that handles clicks, 
+     * renames, and deletions of playlists.
+     */
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         playlistAdapter = PlaylistAdapter(
@@ -93,30 +100,30 @@ class PlaylistSelectionActivity : AppCompatActivity() {
             lifecycleScope = lifecycleScope,
             fragmentManager = supportFragmentManager,
             onPlaylistClick = { playlist ->
-                // Launch PlaylistActivity when a playlist is clicked
                 val intent = Intent(this, PlaylistActivity::class.java)
                 intent.putExtra("PLAYLIST_ID", playlist.id)
                 intent.putExtra("PLAYLIST_NAME", playlist.name)
                 startActivity(intent)
             },
-            onPlaylistDeleted = { playlistId ->
-                // Playlist already removed from adapter, no additional action needed
-            },
-            onPlaylistRenamed = { playlistId, newName ->
-                // Playlist already updated in adapter, no additional action needed
-            }
+            onPlaylistDeleted = { /* Handled internally by adapter */ },
+            onPlaylistRenamed = { _, _ -> /* Handled internally by adapter */ }
         )
         recyclerView.adapter = playlistAdapter
     }
 
+    /**
+     * Displays the AddPlaylistDialog and refreshes the list upon successful creation.
+     */
     private fun showAddPlaylistDialog() {
-        val dialog = AddPlaylistDialog.newInstance { playlistId ->
-            // Refresh the playlist list when a new playlist is created
+        val dialog = AddPlaylistDialog.newInstance { _ ->
             loadPlaylists()
         }
         dialog.show(supportFragmentManager, "AddPlaylist")
     }
 
+    /**
+     * Loads the user's playlists from Firestore, sorted by creation date (newest first).
+     */
     private fun loadPlaylists() {
         lifecycleScope.launch {
             try {
@@ -126,27 +133,16 @@ class PlaylistSelectionActivity : AppCompatActivity() {
                     playlists.addAll(userPlaylists.sortedByDescending { it.createdAt })
                     playlistAdapter.notifyDataSetChanged()
 
-                    // Show message if no playlists
                     if (userPlaylists.isEmpty()) {
-                        Toast.makeText(
-                            this@PlaylistSelectionActivity,
-                            "No playlists yet. Create your first one!",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this@PlaylistSelectionActivity,
+                            "No playlists yet. Create your first one!", Toast.LENGTH_LONG).show()
                     }
                 }.onFailure { exception ->
-                    Toast.makeText(
-                        this@PlaylistSelectionActivity,
-                        "Error loading playlists: ${exception.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(this@PlaylistSelectionActivity,
+                        "Error loading playlists: ${exception.message}", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(
-                    this@PlaylistSelectionActivity,
-                    "Error: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this@PlaylistSelectionActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -166,8 +162,8 @@ class PlaylistSelectionActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Reload playlists when returning to this activity
+        // Refresh data when returning to the selection screen to ensure consistency
         loadPlaylists()
-        updateUserDisplay() // Ensure name is refreshed
+        updateUserDisplay()
     }
 }

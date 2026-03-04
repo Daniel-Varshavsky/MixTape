@@ -28,24 +28,19 @@ import com.example.mixtape.UnifiedPlayerActivity
 import java.io.File
 
 /**
- * MusicPlayerService - UPDATED FOR UNIFIED PLAYER
- *
- * ENHANCED VERSION: Now supports background video audio playback with UnifiedPlayerActivity!
+ * UnifiedPlayerService manages the background playback of both audio and video media.
+ * It uses Android's MediaPlayer for low-level playback and integrates with Media3's
+ * MediaSession to provide system-wide media controls and notifications.
  */
-
 @UnstableApi
 class UnifiedPlayerService : Service() {
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Constants
-    // ─────────────────────────────────────────────────────────────────────────
 
     companion object {
         const val CHANNEL_ID        = "MusicPlayerServiceChannel"
         const val NOTIFICATION_ID   = 1
-        private const val TAG = "MusicPlayerService"
+        private const val TAG = "UnifiedPlayerService"
 
-        // Intent actions sent by notification buttons
+        // Actions defined for handling media control intents from notifications
         const val ACTION_PLAY_PAUSE   = "com.example.mixtape.PLAY_PAUSE"
         const val ACTION_NEXT         = "com.example.mixtape.NEXT"
         const val ACTION_PREVIOUS     = "com.example.mixtape.PREVIOUS"
@@ -56,14 +51,12 @@ class UnifiedPlayerService : Service() {
         const val ACTION_STOP         = "com.example.mixtape.STOP"
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // State
-    // ─────────────────────────────────────────────────────────────────────────
-
+    // --- Media Playback State ---
     private var mediaPlayer: MediaPlayer? = null
     private var mediaSession: MediaSession? = null
     private var media3Player: MusicPlayerStub? = null
 
+    // --- Playlist and Metadata ---
     private var songs: ArrayList<File> = arrayListOf()
     private var songTitles: ArrayList<String> = arrayListOf()
     private var mediaTypes: ArrayList<String> = arrayListOf()
@@ -71,12 +64,17 @@ class UnifiedPlayerService : Service() {
     private var isRepeatOn: Boolean = false
     private var isAutoplayOn: Boolean = true
 
+    // --- Contextual State ---
     private var currentActivityContext: String = "unified"
     private var currentMediaType: String = "audio"
 
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var isPositionUpdateRunning = false
 
+    /**
+     * Runnable used to periodically notify listeners of video playback progress.
+     * This is essential for syncing the VideoView in the UI with the Service's MediaPlayer.
+     */
     private val videoPositionUpdateRunnable = object : Runnable {
         override fun run() {
             val mp = mediaPlayer
@@ -96,6 +94,10 @@ class UnifiedPlayerService : Service() {
         }
     }
 
+    /**
+     * Interface for components to listen for playback state changes, metadata updates,
+     * and specialized video position sync events.
+     */
     interface PlayerListener {
         fun onSongChanged(position: Int, songName: String)
         fun onPlaybackStateChanged(isPlaying: Boolean)
@@ -107,10 +109,6 @@ class UnifiedPlayerService : Service() {
 
     private val listeners = mutableSetOf<PlayerListener>()
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Binder
-    // ─────────────────────────────────────────────────────────────────────────
-
     inner class ServiceBinder : Binder() {
         fun getService(): UnifiedPlayerService = this@UnifiedPlayerService
     }
@@ -119,16 +117,13 @@ class UnifiedPlayerService : Service() {
 
     override fun onBind(intent: Intent): IBinder = binder
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
-
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Handle control actions sent from notification buttons
         when (intent?.action) {
             ACTION_PLAY_PAUSE   -> togglePlayPause()
             ACTION_NEXT         -> playNext()
@@ -147,6 +142,7 @@ class UnifiedPlayerService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        // Clean up service when the app is swiped away from recent tasks
         stopSelf()
     }
 
@@ -157,9 +153,7 @@ class UnifiedPlayerService : Service() {
         super.onDestroy()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Public API
-    // ─────────────────────────────────────────────────────────────────────────
+    // --- Listener Management ---
 
     fun addListener(l: PlayerListener) {
         if (!listeners.contains(l)) {
@@ -171,6 +165,11 @@ class UnifiedPlayerService : Service() {
         listeners.remove(l)
     }
 
+    // --- Playlist Initialization ---
+
+    /**
+     * Initializes the playlist and immediately starts playback at the specified position.
+     */
     fun initPlaylist(
         songList: ArrayList<File>,
         startPosition: Int,
@@ -194,6 +193,10 @@ class UnifiedPlayerService : Service() {
         }
     }
 
+    /**
+     * Initializes the playlist data without starting playback. 
+     * Useful for syncing state when the activity is recreated but the service was already running.
+     */
     fun initPlaylistWithoutAutoplay(
         songList: ArrayList<File>,
         startPosition: Int,
@@ -207,6 +210,8 @@ class UnifiedPlayerService : Service() {
         listeners.forEach { it.onSongChanged(currentPosition, songTitle) }
     }
 
+    // --- Playback Navigation ---
+
     fun playNext() {
         stopCurrentPlaybackInternal()
         currentPosition = (currentPosition + 1) % songs.size
@@ -219,6 +224,10 @@ class UnifiedPlayerService : Service() {
         handlePositionChange()
     }
 
+    /**
+     * Internal helper to update metadata and trigger correct playback mode (audio vs video) 
+     * after a position change.
+     */
     private fun handlePositionChange() {
         val mediaType = getCurrentMediaType()
         val songTitle = if (currentPosition < this.songTitles.size) this.songTitles[currentPosition] else "Unknown"
@@ -233,6 +242,9 @@ class UnifiedPlayerService : Service() {
         }
     }
 
+    /**
+     * Stops current playback and releases the MediaPlayer without removing the notification.
+     */
     private fun stopCurrentPlaybackInternal() {
         handler.removeCallbacks(videoPositionUpdateRunnable)
         isPositionUpdateRunning = false
@@ -248,22 +260,17 @@ class UnifiedPlayerService : Service() {
     }
 
     /**
-     * Public API to completely stop playback and remove the notification.
-     * This is intended to be called when the user is done with playback entirely.
+     * Completely stops playback, releases the MediaSession, and removes the persistent notification.
      */
     fun stopCurrentPlayback() {
         Log.d(TAG, "stopCurrentPlayback() - completely stopping music and notification")
         
-        // 1. Notify listeners first
         listeners.forEach { it.onPlaybackStateChanged(false) }
         
-        // 2. Stop player
         stopCurrentPlaybackInternal()
         
-        // 3. Update Media3 player state to IDLE (if session exists)
         invalidateMediaSessionState()
         
-        // 4. Remove service from foreground state
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
@@ -271,11 +278,9 @@ class UnifiedPlayerService : Service() {
             stopForeground(true)
         }
         
-        // 5. Forcefully cancel the notification via NotificationManager just in case
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID)
 
-        // 6. Release MediaSession to ensure media controls are removed from system (Android 11+)
         try {
             mediaSession?.release()
         } catch (e: Exception) {
@@ -286,6 +291,8 @@ class UnifiedPlayerService : Service() {
         
         Log.d(TAG, "Notification and MediaSession removal completed")
     }
+
+    // --- Core Playback Logic ---
 
     fun playCurrentAudio() {
         currentActivityContext = "unified"
@@ -299,10 +306,15 @@ class UnifiedPlayerService : Service() {
         startMediaPlayerPlayback()
     }
 
+    /**
+     * Prepares and starts the MediaPlayer for the current track. 
+     * Handles both local files and network streams (detected via small dummy files containing URLs).
+     */
     private fun startMediaPlayerPlayback() {
         releasePlayer()
         val file = if (currentPosition < songs.size) songs[currentPosition] else return
 
+        // Resolve URI: Support local files and redirected URLs for cloud playback
         val uri = if (file.exists() && file.length() < 1000) {
             try {
                 val urlContent = file.readText().trim()
@@ -346,13 +358,12 @@ class UnifiedPlayerService : Service() {
                     } else if (isAutoplayOn) {
                         playNext()
                     } else {
-                        // Track finished and autoplay is OFF
+                        // Notify UI that playback has stopped
                         listeners.forEach { it.onPlaybackStateChanged(false) }
 
                         invalidateMediaSessionState()
                         updateNotification()
 
-                        // Optional but recommended: reset to beginning
                         try {
                             seekTo(0)
                         } catch (_: Exception) {}
@@ -367,6 +378,9 @@ class UnifiedPlayerService : Service() {
         }
     }
 
+    /**
+     * Helper to notify all UI listeners and system components that playback has commenced.
+     */
     private fun notifyPlaybackStarted() {
         listeners.forEach { it.onPlaybackStateChanged(true) }
         setupMediaSession()
@@ -382,6 +396,9 @@ class UnifiedPlayerService : Service() {
         handler.post(videoPositionUpdateRunnable)
     }
 
+    /**
+     * Synchronizes internal playlist state with provided data.
+     */
     private fun setupPlaylistData(
         songList: ArrayList<File>,
         startPosition: Int,
@@ -404,6 +421,8 @@ class UnifiedPlayerService : Service() {
             this.mediaTypes.addAll(List(songList.size) { "audio" })
         }
     }
+
+    // --- Playback Control APIs ---
 
     fun togglePlayPause() {
         val mp = mediaPlayer ?: return
@@ -478,6 +497,8 @@ class UnifiedPlayerService : Service() {
         mediaPlayer?.seekTo(ms)
     }
 
+    // --- State Accessors ---
+
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
     fun isRepeat(): Boolean = isRepeatOn
     fun isAutoplay(): Boolean = isAutoplayOn
@@ -486,6 +507,11 @@ class UnifiedPlayerService : Service() {
     fun getSongPosition(): Int = currentPosition
     fun getAudioSessionId(): Int = mediaPlayer?.audioSessionId ?: -1
     fun getCurrentMediaType(): String = if (currentPosition < mediaTypes.size) mediaTypes[currentPosition] else "audio"
+    
+    /**
+     * Used by UI to specify the current playback context. 
+     * Reserved for future enhancements to support multiple playback modes.
+     */
     fun setActivityContext(context: String) { currentActivityContext = "unified" }
 
     private fun releasePlayer() {
@@ -502,20 +528,28 @@ class UnifiedPlayerService : Service() {
         mediaPlayer = null
     }
 
+    // --- Media3 and MediaSession Integration ---
+
     private fun setupMediaSession() {
         if (mediaSession != null) return
         media3Player = MusicPlayerStub()
         mediaSession = MediaSession.Builder(this, media3Player!!).build()
     }
 
+    /**
+     * A stub implementation of Media3's SimpleBasePlayer to translate MediaSession 
+     * commands into our internal MediaPlayer logic.
+     */
     @UnstableApi
     private inner class MusicPlayerStub : androidx.media3.common.SimpleBasePlayer(mainLooper) {
         fun notifyStateChanged() = invalidateState()
+        
         override fun getState(): State {
             val playbackState = if (mediaPlayer != null) Player.STATE_READY else Player.STATE_IDLE
             val currentItem = SimpleBasePlayer.MediaItemData.Builder(0)
                 .setDurationUs(mediaPlayer?.duration?.let { it.toLong() * 1_000L } ?: C.TIME_UNSET)
                 .build()
+            
             return State.Builder()
                 .setAvailableCommands(Player.Commands.Builder().addAll(
                     Player.COMMAND_PLAY_PAUSE, Player.COMMAND_SEEK_TO_NEXT,
@@ -529,12 +563,15 @@ class UnifiedPlayerService : Service() {
                 .setRepeatMode(if (isRepeatOn) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF)
                 .build()
         }
+        
         override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
             if (playWhenReady) play() else pause()
             return Futures.immediateVoidFuture()
         }
+        
         fun handleSeekToNextMediaItem(): ListenableFuture<*> { playNext(); return Futures.immediateVoidFuture() }
         fun handleSeekToPreviousMediaItem(): ListenableFuture<*> { playPrevious(); return Futures.immediateVoidFuture() }
+        
         override fun handleSeek(idx: Int, pos: Long, cmd: Int): ListenableFuture<*> {
             seekTo(pos.toInt()); return Futures.immediateVoidFuture()
         }
@@ -543,6 +580,8 @@ class UnifiedPlayerService : Service() {
     private fun invalidateMediaSessionState() {
         media3Player?.notifyStateChanged()
     }
+
+    // --- Notification Management ---
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -555,18 +594,24 @@ class UnifiedPlayerService : Service() {
         val songName = if (currentPosition < this.songTitles.size) this.songTitles[currentPosition] else songs.getOrNull(currentPosition)?.name ?: "Unknown"
         val playing = isPlaying()
         val contentTitle = if (currentMediaType == "video") "Now Watching" else "Now Playing"
+        
         fun actionPendingIntent(action: String): PendingIntent {
             val i = Intent(this, UnifiedPlayerService::class.java).apply { this.action = action }
             return PendingIntent.getService(this, action.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
+        
         val openAppIntent = Intent(this, UnifiedPlayerActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP }
         val openAppPending = PendingIntent.getActivity(this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val playPauseIcon = if (playing) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24
         
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.baseline_library_music_24)
-            .setContentTitle(contentTitle).setContentText(songName).setContentIntent(openAppPending)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setOnlyAlertOnce(true).setOngoing(playing)
+            .setContentTitle(contentTitle)
+            .setContentText(songName)
+            .setContentIntent(openAppPending)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .setOngoing(playing)
             
         mediaSession?.let {
             builder.setStyle(MediaStyleNotificationHelper.MediaStyle(it).setShowActionsInCompactView(1, 2, 3))

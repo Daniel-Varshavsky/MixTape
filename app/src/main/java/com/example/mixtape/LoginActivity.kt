@@ -20,6 +20,11 @@ import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 
+/**
+ * LoginActivity handles user authentication.
+ * It supports standard Email/Password login through Firebase Auth and
+ * social login via Google using FirebaseUI.
+ */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
@@ -34,7 +39,10 @@ class LoginActivity : AppCompatActivity() {
         private const val TAG = "LoginActivity"
     }
 
-    // Firebase UI launcher for Google Sign-In only
+    /**
+     * Activity result launcher for the FirebaseUI Google Sign-In flow.
+     * This abstracts the complex OAuth logic into a single contract.
+     */
     private val googleSignInLauncher = registerForActivityResult(
         FirebaseAuthUIActivityResultContract(),
     ) { res ->
@@ -45,10 +53,9 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
-        // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
 
-        // Check if user is already logged in
+        // Redirect immediately if the user session is still active
         if (auth.currentUser != null) {
             Toast.makeText(
                 this,
@@ -82,6 +89,10 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Configures the registration prompt as a clickable spannable string.
+     * This provides a better UX than a separate "Register" button.
+     */
     private fun setupRegisterLink() {
         val text = "Don't have an account? Register here"
         val spannableString = SpannableString(text)
@@ -106,6 +117,10 @@ class LoginActivity : AppCompatActivity() {
         registerLink.movementMethod = LinkMovementMethod.getInstance()
     }
 
+    /**
+     * Authenticates the user using Firebase Email/Password provider.
+     * Includes basic client-side validation for improved responsiveness.
+     */
     private fun loginWithEmail() {
         val email = usernameEditText.text.toString().trim()
         val password = passwordEditText.text.toString().trim()
@@ -138,7 +153,6 @@ class LoginActivity : AppCompatActivity() {
 
                 if (task.isSuccessful) {
                     Log.d(TAG, "signInWithEmail:success")
-                    val user = auth.currentUser
                     Toast.makeText(this, "Welcome back!", Toast.LENGTH_SHORT).show()
                     transactToNextScreen()
                 } else {
@@ -149,8 +163,11 @@ class LoginActivity : AppCompatActivity() {
             }
     }
 
+    /**
+     * Triggers the Google Sign-In flow using FirebaseUI.
+     * This handles the underlying Google Play Services configuration and OAuth token exchange.
+     */
     private fun signInWithGoogle() {
-        // Use Firebase UI for Google Sign-In only
         val providers = arrayListOf(
             AuthUI.IdpConfig.GoogleBuilder().build()
         )
@@ -169,10 +186,12 @@ class LoginActivity : AppCompatActivity() {
         googleSignInLauncher.launch(signInIntent)
     }
 
+    /**
+     * Handles the result of the Google Sign-In flow.
+     */
     private fun onGoogleSignInResult(result: FirebaseAuthUIAuthenticationResult) {
         val response = result.idpResponse
         if (result.resultCode == RESULT_OK) {
-            // Successfully signed in with Google
             val user = auth.currentUser
             Log.d(TAG, "signInWithGoogle:success")
             Toast.makeText(
@@ -182,12 +201,15 @@ class LoginActivity : AppCompatActivity() {
             ).show()
             transactToNextScreen()
         } else {
-            // Google sign in failed
             Log.w(TAG, "Google sign in failed", response?.error)
             Toast.makeText(this, "Google sign in failed", Toast.LENGTH_SHORT).show()
         }
     }
 
+    /**
+     * Navigates to the main playlist selection screen and finishes this activity
+     * to prevent users from navigating back to the login screen.
+     */
     private fun transactToNextScreen() {
         startActivity(Intent(this, PlaylistSelectionActivity::class.java))
         finish()

@@ -16,6 +16,10 @@ import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.util.UUID
 
+/**
+ * Central repository for all Firebase operations including Firestore, Storage, and Auth.
+ * Handles user profiles, media uploads, playlist management, and sharing functionality.
+ */
 class FirebaseRepository {
 
     private val auth = FirebaseAuth.getInstance()
@@ -27,7 +31,8 @@ class FirebaseRepository {
 
     fun getCurrentUserId(): String? = userId
 
-    // Storage references
+    // --- Storage Reference Helpers ---
+
     private fun getUserSongsRef(): StorageReference? {
         return userId?.let { uid ->
             storage.reference.child("users/$uid/songs")
@@ -40,13 +45,18 @@ class FirebaseRepository {
         }
     }
 
-    // Firestore collections
+    // --- Firestore Collection References ---
     private val playlistsCollection = firestore.collection("playlists")
     private val songsCollection = firestore.collection("songs")
     private val videosCollection = firestore.collection("videos")
     private val usersCollection = firestore.collection("users")
 
-    // USER PROFILE OPERATIONS
+    // --- User Profile Operations ---
+
+    /**
+     * Fetches the current user's profile. If it doesn't exist or is incomplete,
+     * it initializes/updates it using Firebase Auth data.
+     */
     suspend fun getUserProfile(): Result<UserProfile> {
         return try {
             val currentUid = userId ?: throw Exception("User not authenticated")
@@ -56,7 +66,7 @@ class FirebaseRepository {
                 var profile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
                     ?: throw Exception("User profile not found")
                 
-                // If critical fields are missing, update them from Auth and merge
+                // Sync display name and email from Auth if missing in Firestore
                 if (profile.displayName.isEmpty() || profile.email.isEmpty()) {
                     val authUser = auth.currentUser
                     val fallbackName = authUser?.displayName?.takeIf { it.isNotEmpty() } 
@@ -68,14 +78,13 @@ class FirebaseRepository {
                         email = if (profile.email.isEmpty()) authUser?.email ?: "" else profile.email
                     )
                     
-                    // Update Firestore with the found info
                     updateUserProfile(updatedProfile)
                     profile = updatedProfile
                 }
                 
                 Result.success(profile)
             } else {
-                // Create basic profile if it doesn't exist
+                // Initialize new profile for first-time login
                 createUserProfileIfNotExists(currentUid)
                 val authUser = auth.currentUser
                 val name = authUser?.displayName?.takeIf { it.isNotEmpty() } 
@@ -107,7 +116,11 @@ class FirebaseRepository {
         }
     }
 
-    // GLOBAL TAG OPERATIONS
+    // --- Global Tag Operations ---
+
+    /**
+     * Adds a tag to the user's global tag list for quick filtering/auto-complete.
+     */
     suspend fun addGlobalTag(tag: String): Result<Unit> {
         return try {
             val currentUid = userId ?: throw Exception("User not authenticated")
@@ -119,7 +132,6 @@ class FirebaseRepository {
             )
 
             userRef.set(userData, SetOptions.merge()).await()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error adding global tag: ${e.message}", e)
@@ -138,7 +150,6 @@ class FirebaseRepository {
             )
 
             userRef.set(userData, SetOptions.merge()).await()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error removing global tag: ${e.message}", e)
@@ -155,7 +166,6 @@ class FirebaseRepository {
                 val profile = doc.toObject(UserProfile::class.java)
                 Result.success(profile?.globalTags ?: emptyList())
             } else {
-                Log.d("FirebaseRepository", "User document doesn't exist, creating with empty tags")
                 createUserProfileIfNotExists(currentUid)
                 Result.success(emptyList())
             }
@@ -165,6 +175,9 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Internal helper to ensure a user profile exists before attempting updates.
+     */
     private suspend fun createUserProfileIfNotExists(uid: String) {
         try {
             val doc = usersCollection.document(uid).get().await()
@@ -183,13 +196,15 @@ class FirebaseRepository {
                     "updatedAt" to com.google.firebase.Timestamp.now()
                 )
                 usersCollection.document(uid).set(userData, SetOptions.merge()).await()
-                Log.d("FirebaseRepository", "Created/Merged basic user profile for: $uid")
             }
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error creating user profile: ${e.message}", e)
         }
     }
 
+    /**
+     * Automatically adds new tags to the user's global list when they are added to media.
+     */
     private suspend fun ensureTagsInGlobal(tags: List<String>, targetUid: String? = null) {
         if (tags.isEmpty()) return
 
@@ -209,7 +224,11 @@ class FirebaseRepository {
         }
     }
 
-    // SONG OPERATIONS
+    // --- Media Operations (Song/Video) ---
+
+    /**
+     * Uploads a song file to Storage and creates its metadata document in Firestore.
+     */
     suspend fun uploadSong(
         fileUri: Uri,
         title: String,
@@ -255,7 +274,9 @@ class FirebaseRepository {
         }
     }
 
-    // VIDEO OPERATIONS
+    /**
+     * Uploads a video file to Storage and creates its metadata document in Firestore.
+     */
     suspend fun uploadVideo(
         fileUri: Uri,
         title: String,
@@ -302,7 +323,11 @@ class FirebaseRepository {
         }
     }
 
-    // PLAYLIST OPERATIONS
+    // --- Playlist Management ---
+
+    /**
+     * Creates a new playlist document. Does not add media items initially.
+     */
     suspend fun createPlaylist(
         name: String,
         description: String = "",
@@ -345,6 +370,9 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Internal helper to copy a file within Firebase Storage by downloading and re-uploading.
+     */
     private suspend fun copyStorageFile(oldPath: String, newPath: String) {
         if (oldPath.isEmpty()) return
         try {
@@ -361,6 +389,10 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Creates a deep copy of a playlist for another user. This includes duplicating
+     * all media metadata and physical files in Storage to ensure data ownership.
+     */
     private suspend fun createCopyOfPlaylist(
         originalPlaylist: Playlist,
         targetUserId: String,
@@ -370,7 +402,7 @@ class FirebaseRepository {
             val newSongIds = mutableListOf<String>()
             val newVideoIds = mutableListOf<String>()
 
-            // 1. Copy all songs completely
+            // Duplicate all songs for the new owner
             for (songId in originalPlaylist.songIds) {
                 val songDoc = songsCollection.document(songId).get().await()
                 val originalSong = songDoc.toObject(Song::class.java)
@@ -399,7 +431,7 @@ class FirebaseRepository {
                 }
             }
 
-            // 2. Copy all videos completely
+            // Duplicate all videos for the new owner
             for (videoId in originalPlaylist.videoIds) {
                 val videoDoc = videosCollection.document(videoId).get().await()
                 val originalVideo = videoDoc.toObject(Video::class.java)
@@ -438,7 +470,7 @@ class FirebaseRepository {
                 }
             }
 
-            // 3. Create the new playlist document
+            // Create the duplicate playlist document
             val playlistId = UUID.randomUUID().toString()
             val copiedPlaylist = Playlist(
                 id = playlistId,
@@ -464,8 +496,6 @@ class FirebaseRepository {
             )
 
             playlistsCollection.document(playlistId).set(copiedPlaylist).await()
-            Log.d("FirebaseRepository", "Created complete separate copy for user $targetUserId: $playlistId")
-            
             updateUserTagsFromPlaylist(copiedPlaylist, targetUserId)
             Result.success(copiedPlaylist)
         } catch (e: Exception) {
@@ -474,11 +504,15 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Updates the target user's global tags based on the tags found in a new playlist.
+     */
     private suspend fun updateUserTagsFromPlaylist(playlist: Playlist, targetUserId: String) {
         try {
             val allTags = mutableSetOf<String>()
             allTags.addAll(playlist.playlistTags)
             
+            // Collect tags from all media in the playlist
             if (playlist.songIds.isNotEmpty()) {
                 playlist.songIds.chunked(10).forEach { ids ->
                     val songDocs = songsCollection.whereIn("id", ids).get().await()
@@ -568,6 +602,9 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Fetches a playlist and all its associated media items (Songs and Videos).
+     */
     suspend fun getPlaylistWithMedia(playlistId: String): Result<Triple<Playlist, List<Song>, List<Video>>> {
         return try {
             val playlistDoc = playlistsCollection.document(playlistId).get().await()
@@ -650,6 +687,11 @@ class FirebaseRepository {
         }
     }
 
+    // --- Sharing Functionality ---
+
+    /**
+     * Direct sharing: creates a copy of the playlist for the target user.
+     */
     suspend fun sharePlaylistWithUser(
         playlistId: String,
         targetUserId: String,
@@ -692,6 +734,9 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Share code generation: enables any user to join a playlist if they have the 6-digit code.
+     */
     suspend fun generateShareCode(playlistId: String): Result<String> {
         return try {
             val currentUid = userId ?: throw Exception("User not authenticated")
@@ -777,6 +822,8 @@ class FirebaseRepository {
         return shareCode
     }
 
+    // --- Update & Delete Operations ---
+
     suspend fun updatePlaylistName(playlistId: String, newName: String): Result<Unit> {
         return try {
             val currentUid = userId ?: throw Exception("User not authenticated")
@@ -821,7 +868,6 @@ class FirebaseRepository {
     suspend fun deletePlaylist(playlistId: String): Result<Unit> {
         return try {
             playlistsCollection.document(playlistId).delete().await()
-            Log.d("FirebaseRepository", "Playlist deleted: $playlistId")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("FirebaseRepository", "Error deleting playlist: ${e.message}", e)
@@ -829,6 +875,10 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Checks if a media item is referenced by any other playlist (e.g., shared copies).
+     * Prevents deleting files from Storage if other users are still using them.
+     */
     private suspend fun isMediaUsedByAnyone(mediaId: String, isVideo: Boolean): Boolean {
         return try {
             val fieldName = if (isVideo) "videoIds" else "songIds"
@@ -910,6 +960,7 @@ class FirebaseRepository {
                 )
             ).await()
 
+            // If this was the last reference to the song, delete it from the cloud
             if (!isMediaUsedByAnyone(songId, isVideo = false)) {
                 deleteMediaCompletelyInternal(songId, isVideo = false)
             }
@@ -1010,6 +1061,10 @@ class FirebaseRepository {
         }
     }
 
+    /**
+     * Deletes a song from all of the user's playlists and removes it from Storage
+     * if no other copies (from sharing) exist.
+     */
     suspend fun deleteSongCompletely(songId: String): Result<Unit> {
         return try {
             removeFromAllPlaylists(songId, isVideo = false)
