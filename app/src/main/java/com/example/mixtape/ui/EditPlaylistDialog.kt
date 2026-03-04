@@ -1,4 +1,4 @@
-package com.example.mixtape
+package com.example.mixtape.ui
 
 import android.app.Activity
 import android.app.Dialog
@@ -23,6 +23,7 @@ import com.example.mixtape.utilities.MediaMetadataExtractor
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
 import kotlinx.coroutines.launch
+import com.example.mixtape.R
 import java.util.UUID
 
 class EditPlaylistDialog : DialogFragment() {

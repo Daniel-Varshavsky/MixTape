@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.adapters.*
 import com.example.mixtape.model.*
 import com.example.mixtape.service.UnifiedPlayerService
+import com.example.mixtape.ui.EditPlaylistDialog
 import com.example.mixtape.utilities.FirebaseRepository
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap

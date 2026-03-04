@@ -5,10 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.example.mixtape.model.MediaItem
+import com.google.android.flexbox.FlexDirection
+import com.google.android.flexbox.FlexWrap
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 
 class MediaAdapter(
     private var mediaItems: List<MediaItem>,
@@ -48,11 +51,11 @@ class MediaAdapter(
         holder.duration.text = item.getDurationFormatted()
 
         // Set up tags RecyclerView
-        holder.tagsRecycler.layoutManager = LinearLayoutManager(
-            holder.itemView.context, 
-            LinearLayoutManager.HORIZONTAL, 
-            false
-        )
+        holder.tagsRecycler.layoutManager = FlexboxLayoutManager(holder.itemView.context).apply {
+            flexDirection = FlexDirection.ROW
+            flexWrap = FlexWrap.WRAP
+            justifyContent = JustifyContent.FLEX_START
+        }
         holder.tagsRecycler.adapter = TagChipAdapter(item.tags)
 
         // Handle click

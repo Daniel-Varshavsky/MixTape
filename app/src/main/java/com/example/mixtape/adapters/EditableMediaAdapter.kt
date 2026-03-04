@@ -5,10 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.example.mixtape.model.MediaItem
+import com.google.android.flexbox.FlexDirection
+import com.google.android.flexbox.FlexWrap
+import com.google.android.flexbox.FlexboxLayoutManager
+import com.google.android.flexbox.JustifyContent
 import com.google.android.material.button.MaterialButton
 
 class EditableMediaAdapter(
@@ -112,7 +115,11 @@ class EditableMediaAdapter(
 
     private fun setupCurrentTagsRecycler(holder: ViewHolder, item: MediaItem) {
         holder.currentTagsRecycler.layoutManager =
-            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+            FlexboxLayoutManager(holder.itemView.context).apply {
+                flexDirection = FlexDirection.ROW
+                flexWrap = FlexWrap.WRAP
+                justifyContent = JustifyContent.FLEX_START
+            }
 
         holder.currentTagsAdapter = RemovableTagChipAdapter(item.tags) { tagToRemove ->
             // Check if this tag was originally on the item
@@ -142,7 +149,11 @@ class EditableMediaAdapter(
 
     private fun setupAvailableTagsRecycler(holder: ViewHolder, item: MediaItem) {
         holder.availableTagsRecycler.layoutManager =
-            LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
+            FlexboxLayoutManager(holder.itemView.context).apply {
+                flexDirection = FlexDirection.ROW
+                flexWrap = FlexWrap.WRAP
+                justifyContent = JustifyContent.FLEX_START
+            }
 
         holder.availableTagsAdapter = ClickableTagChipAdapter { selectedTag ->
             // Add tag to current tags (immediate UI feedback)
