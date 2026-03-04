@@ -12,10 +12,19 @@
     <com.google.android.material.textview.MaterialTextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Create New Playlist"
+        android:text="Add Playlist"
         android:textColor="@color/white"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textStyle="bold"/>
+
+    <!-- Create Section -->
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Create New"
+        android:textColor="@color/gray_400"
+        android:textSize="14sp"
+        android:layout_marginTop="16dp"/>
 
     <EditText
         android:id="@+id/playlistNameInput"
@@ -25,34 +34,85 @@
         android:textColor="@color/white"
         android:textColorHint="@color/gray_400"
         android:backgroundTint="@color/red"
-        android:layout_marginTop="16dp"/>
+        android:maxLines="1"
+        android:inputType="textCapSentences"
+        android:layout_marginTop="4dp"/>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCreate"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Create New Playlist"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/red"
+        android:layout_marginTop="8dp"/>
+
+    <!-- Divider -->
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end"
-        android:layout_marginTop="24dp">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancel"
+        android:gravity="center"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp">
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1"
+            android:background="@color/gray_400"/>
+        <com.google.android.material.textview.MaterialTextView
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:text="Cancel"
-            android:textColor="@color/white"
-            android:backgroundTint="@color/black"
-            android:layout_marginEnd="8dp"
-            app:strokeColor="@color/red"
-            app:strokeWidth="1dp"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCreate"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:text="Create"
-            android:textColor="@color/white"
-            android:backgroundTint="@color/red"/>
-
+            android:layout_height="wrap_content"
+            android:text=" OR "
+            android:textColor="@color/gray_400"
+            android:textSize="12sp"
+            android:textStyle="bold"/>
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1"
+            android:background="@color/gray_400"/>
     </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <!-- Join Section -->
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Join via Share Code"
+        android:textColor="@color/gray_400"
+        android:textSize="14sp"/>
+
+    <EditText
+        android:id="@+id/shareCodeInput"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Enter 6-digit code..."
+        android:textColor="@color/white"
+        android:textColorHint="@color/gray_400"
+        android:backgroundTint="@color/red"
+        android:maxLines="1"
+        android:inputType="textCapCharacters"
+        android:textAllCaps="true"
+        android:layout_marginTop="4dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnJoin"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Join Playlist"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/red"
+        android:layout_marginTop="8dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCancel"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Cancel"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/black"
+        android:layout_marginTop="16dp"
+        app:strokeColor="@color/red"
+        app:strokeWidth="1dp"/>
 
 </androidx.appcompat.widget.LinearLayoutCompat>

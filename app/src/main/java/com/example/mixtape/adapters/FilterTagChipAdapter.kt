@@ -6,6 +6,14 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.google.android.material.chip.Chip
 
+/**
+ * Adapter for the filter sidebar, allowing users to toggle tags to filter the media list.
+ * 
+ * Key Features:
+ * 1. Multi-select: Maintains a set of selected tags.
+ * 2. Visual Feedback: Changes chip background color based on selection state.
+ * 3. Event Handling: Clears listener before updating state to avoid recursion issues during recycling.
+ */
 class FilterTagChipAdapter(
     private val onTagSelectionChanged: (String, Boolean) -> Unit
 ) : RecyclerView.Adapter<FilterTagChipAdapter.ViewHolder>() {
@@ -19,16 +27,15 @@ class FilterTagChipAdapter(
         val chipContainer = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_filter_tag_chip, parent, false)
 
-        val chip = chipContainer.findViewById<Chip>(R.id.chip)
-            ?: chipContainer as Chip
-
+        val chip = chipContainer.findViewById<Chip>(R.id.chip) ?: chipContainer as Chip
         return ViewHolder(chip)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val tag = tags[position]
 
-        holder.chip.setOnCheckedChangeListener(null) // IMPORTANT: Clear listener before setting state
+        // Clear listener to prevent side-effects when recycler view reuses this holder
+        holder.chip.setOnCheckedChangeListener(null) 
         holder.chip.text = tag
 
         val isSelected = selectedTags.contains(tag)
@@ -44,6 +51,9 @@ class FilterTagChipAdapter(
         }
     }
 
+    /**
+     * Updates the chip color dynamically based on its 'checked' state.
+     */
     private fun updateChipAppearance(chip: Chip, isSelected: Boolean) {
         val color = if (isSelected)
             chip.context.getColorStateList(R.color.chip_selected)
@@ -58,10 +68,8 @@ class FilterTagChipAdapter(
     fun updateTags(newTags: List<String>) {
         tags.clear()
         tags.addAll(newTags)
-
-        // Remove selections that no longer exist
+        // Cleanup: remove selections that are no longer available globally
         selectedTags.retainAll(newTags.toSet())
-
         notifyDataSetChanged()
     }
 

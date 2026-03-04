@@ -3,13 +3,10 @@
     activity_unified_player.xml - COMPLETE SELF-CONTAINED VERSION
 
     UNIFIED PLAYER LAYOUT - Contains both audio and video player UIs
-    - Audio layout: Traditional music player with visualizer
-    - Video layout: VideoView with overlay controls
-    - Only one is visible at a time based on media type
-    - No external includes - everything is self-contained
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black"
@@ -17,7 +14,7 @@
     android:textDirection="ltr">
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- AUDIO PLAYER LAYOUT (Default visible) -->
+    <!-- AUDIO PLAYER LAYOUT -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <androidx.appcompat.widget.LinearLayoutCompat
@@ -113,8 +110,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-                <!-- AUDIO CONTROL BUTTONS -->
-
                 <!-- Previous Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonPrevious"
@@ -199,7 +194,7 @@
                     app:rippleColor="@color/red_10"
                     android:contentDescription="Next track" />
 
-                <!-- Repeat Button (Moved below and between Rewind/Play) -->
+                <!-- Repeat Button (Row 2 - Left side) -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonRepeat"
                     android:layout_width="48dp"
@@ -217,6 +212,24 @@
                     app:rippleColor="@color/red_10"
                     android:contentDescription="Toggle repeat" />
 
+                <!-- Autoplay Button (Row 2 - Right side) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonAutoplay"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_below="@+id/buttonFastForward"
+                    android:layout_toEndOf="@+id/buttonPlay"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginStart="-25dp"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    app:icon="@drawable/outline_autoplay_24"
+                    app:iconTint="@color/white"
+                    app:iconSize="24dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@android:color/transparent"
+                    app:rippleColor="@color/red_10"
+                    android:contentDescription="Toggle autoplay" />
+
                 <!-- Audio Visualizer -->
                 <com.example.mixtape.ui.BarVisualizerView
                     android:id="@+id/audioVisualizer"
@@ -231,7 +244,7 @@
     </androidx.appcompat.widget.LinearLayoutCompat>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- VIDEO PLAYER LAYOUT (Initially hidden) -->
+    <!-- VIDEO PLAYER LAYOUT -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <RelativeLayout
@@ -345,7 +358,7 @@
 
                 </RelativeLayout>
 
-                <!-- Video Control Buttons (Constraint Layout for Dynamic Positioning) -->
+                <!-- Video Control Buttons -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/videoButtonsContainer"
                     android:layout_width="match_parent"
@@ -377,7 +390,7 @@
                         android:id="@+id/videoButtonFastRewind"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_marginEnd="16dp"
+                        android:layout_marginEnd="12dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_fast_rewind_24"
                         app:iconTint="@color/white"
@@ -408,12 +421,30 @@
                         app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
                         app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
+                    <!-- Video Repeat Button (To the left of Previous) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/videoButtonRepeat"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_marginEnd="8dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        app:icon="@drawable/baseline_repeat_24"
+                        app:iconTint="@color/white"
+                        app:iconSize="24dp"
+                        app:iconGravity="textStart"
+                        app:backgroundTint="@android:color/transparent"
+                        app:rippleColor="@color/red_10"
+                        android:contentDescription="Toggle repeat"
+                        app:layout_constraintEnd_toStartOf="@id/videoButtonPrevious"
+                        app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
+                        app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
+
                     <!-- Video Fast Forward Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/videoButtonFastForward"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="12dp"
                         style="@style/Widget.Material3.Button.IconButton"
                         app:icon="@drawable/baseline_fast_forward_24"
                         app:iconTint="@color/white"
@@ -444,21 +475,21 @@
                         app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
                         app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 
-                    <!-- Video Repeat Button -->
+                    <!-- Video Autoplay Button (To the right of Next) -->
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/videoButtonRepeat"
+                        android:id="@+id/videoButtonAutoplay"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_marginStart="8dp"
                         style="@style/Widget.Material3.Button.IconButton"
-                        app:icon="@drawable/baseline_repeat_24"
+                        app:icon="@drawable/outline_autoplay_24"
                         app:iconTint="@color/white"
                         app:iconSize="24dp"
                         app:iconGravity="textStart"
                         app:backgroundTint="@android:color/transparent"
                         app:rippleColor="@color/red_10"
-                        android:contentDescription="Toggle repeat"
-                        app:layout_constraintEnd_toStartOf="@id/videoButtonPrevious"
+                        android:contentDescription="Toggle autoplay"
+                        app:layout_constraintStart_toEndOf="@id/videoButtonNext"
                         app:layout_constraintTop_toTopOf="@id/videoButtonPlay"
                         app:layout_constraintBottom_toBottomOf="@id/videoButtonPlay" />
 

@@ -6,6 +6,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.google.android.material.chip.Chip
 
+/**
+ * Adapter for tags that can be removed via a close icon.
+ * Used in the "Edit Playlist" screen to remove tags currently assigned to a media item.
+ */
 class RemovableTagChipAdapter(
     private val tags: MutableList<String>,
     private val onTagRemove: (String) -> Unit
@@ -23,11 +27,14 @@ class RemovableTagChipAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val tag = tags[position]
         holder.chip.text = tag
+        
+        // Configuration: Static display but with an active close icon
         holder.chip.isCloseIconVisible = true
-
-        // Make close icon white and proper size
         holder.chip.setCloseIconTintResource(R.color.white)
-        holder.chip.closeIconSize = 24f * holder.chip.context.resources.displayMetrics.density
+        
+        // Consistent sizing using screen density
+        val density = holder.chip.context.resources.displayMetrics.density
+        holder.chip.closeIconSize = 24f * density
 
         holder.chip.setOnCloseIconClickListener {
             onTagRemove(tag)

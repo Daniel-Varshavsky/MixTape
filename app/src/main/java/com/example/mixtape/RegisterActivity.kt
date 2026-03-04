@@ -16,9 +16,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
-import java.util.concurrent.TimeUnit
 
+/**
+ * RegisterActivity handles the creation of new user accounts.
+ * It coordinates between Firebase Authentication (for security) and 
+ * Firestore (for storing application-specific user profiles and preferences).
+ */
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
@@ -32,18 +37,16 @@ class RegisterActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "RegisterActivity"
-        private const val FIRESTORE_TIMEOUT_SECONDS = 10L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
 
-        // Initialize Firebase Auth and Firestore
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
 
-        // Check if user is already logged in
+        // Redirect if already logged in
         if (auth.currentUser != null) {
             transactToNextScreen()
             return
@@ -68,6 +71,9 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Configures a clickable link to navigate back to the Login screen.
+     */
     private fun setupLoginLink() {
         val text = "Already have an account? Login here"
         val spannableString = SpannableString(text)
@@ -93,12 +99,18 @@ class RegisterActivity : AppCompatActivity() {
         loginLink.movementMethod = LinkMovementMethod.getInstance()
     }
 
+    /**
+     * Orchestrates the registration process:
+     * 1. Validates user input.
+     * 2. Creates the account in Firebase Auth.
+     * 3. Updates the Auth profile with a display name.
+     * 4. Creates a corresponding document in Firestore.
+     */
     private fun registerUser() {
         val email = usernameEditText.text.toString().trim()
         val password = passwordEditText.text.toString().trim()
         val confirmPassword = confirmPasswordEditText.text.toString().trim()
 
-        // Validation
         if (email.isEmpty()) {
             usernameEditText.error = "Email is required"
             usernameEditText.requestFocus()
@@ -143,15 +155,26 @@ class RegisterActivity : AppCompatActivity() {
                 if (task.isSuccessful) {
                     Log.d(TAG, "createUserWithEmail:success")
                     val user = auth.currentUser
+                    val displayName = email.substringBefore("@")
 
-                    // Update UI to show Firestore step
                     registerButton.text = "Setting up profile..."
 
-                    // Save user data to Firestore with timeout
+                    // Sync display name to the Auth profile for immediate use
+                    val profileUpdates = UserProfileChangeRequest.Builder()
+                        .setDisplayName(displayName)
+                        .build()
+                    
+                    user?.updateProfile(profileUpdates)
+                        ?.addOnCompleteListener { profileTask ->
+                            if (profileTask.isSuccessful) {
+                                Log.d(TAG, "User auth profile updated.")
+                            }
+                        }
+
+                    // Proceed to Firestore setup
                     user?.let {
-                        createUserProfile(it.uid, email)
+                        createUserProfile(it.uid, email, displayName)
                     } ?: run {
-                        // Fallback if user is null
                         handleRegistrationComplete()
                     }
                 } else {
@@ -161,9 +184,9 @@ class RegisterActivity : AppCompatActivity() {
 
                     val errorMessage = when {
                         task.exception?.message?.contains("email address is already in use") == true ->
-                            "This email is already registered. Please use a different email or login."
+                            "This email is already registered."
                         task.exception?.message?.contains("weak password") == true ->
-                            "Password is too weak. Please choose a stronger password."
+                            "Password is too weak."
                         else -> "Registration failed: ${task.exception?.message}"
                     }
 
@@ -172,11 +195,17 @@ class RegisterActivity : AppCompatActivity() {
             }
     }
 
-    private fun createUserProfile(uid: String, email: String) {
+    /**
+     * Initializes the user's document in Firestore with default values.
+     */
+    private fun createUserProfile(uid: String, email: String, displayName: String) {
         val userData = hashMapOf(
+            "id" to uid,
             "email" to email,
-            "displayName" to email.substringBefore("@"),
+            "displayName" to displayName,
             "createdAt" to com.google.firebase.Timestamp.now(),
+            "updatedAt" to com.google.firebase.Timestamp.now(),
+            "globalTags" to emptyList<String>(),
             "playlists" to emptyList<String>()
         )
 
@@ -189,11 +218,10 @@ class RegisterActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Log.w(TAG, "Error creating user profile", e)
-                // Even if Firestore fails, authentication succeeded
-                // So we can still proceed, but show a warning
+                // If Auth succeeded but Firestore failed, we still allow entry
                 Toast.makeText(
                     this,
-                    "Account created, but profile setup had issues. You can still use the app.",
+                    "Account created, but profile setup had issues.",
                     Toast.LENGTH_LONG
                 ).show()
                 handleRegistrationComplete()

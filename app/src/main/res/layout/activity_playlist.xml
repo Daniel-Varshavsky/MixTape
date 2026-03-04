@@ -189,7 +189,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 style="@style/Widget.Material3.Button.IconButton"
-                app:icon="@drawable/outline_repeat_24"
+                app:icon="@drawable/baseline_repeat_24"
                 app:iconTint="@color/white"
                 android:backgroundTint="@color/black"
                 app:strokeColor="@color/red"
@@ -198,6 +198,23 @@
                 android:contentDescription="Toggle repeat"
                 android:layout_marginStart="8dp"
                 app:layout_constraintStart_toEndOf="@id/btnShuffle"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAutoplay"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                style="@style/Widget.Material3.Button.IconButton"
+                app:icon="@drawable/outline_autoplay_24"
+                app:iconTint="@color/white"
+                android:backgroundTint="@color/black"
+                app:strokeColor="@color/red"
+                app:strokeWidth="1dp"
+                app:rippleColor="@color/red_10"
+                android:contentDescription="Toggle autoplay"
+                android:layout_marginStart="8dp"
+                app:layout_constraintStart_toEndOf="@id/btnRepeat"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
 

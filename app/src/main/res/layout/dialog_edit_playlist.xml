@@ -75,7 +75,7 @@
 
     </FrameLayout>
 
-    <!-- Current Items (Scrollable with Border) - Wider than other elements -->
+    <!-- Current Items (Scrollable with Border) -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"

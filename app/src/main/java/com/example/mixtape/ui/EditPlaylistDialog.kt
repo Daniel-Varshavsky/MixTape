@@ -1,4 +1,4 @@
-package com.example.mixtape
+package com.example.mixtape.ui
 
 import android.app.Activity
 import android.app.Dialog
@@ -23,33 +23,48 @@ import com.example.mixtape.utilities.MediaMetadataExtractor
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
 import kotlinx.coroutines.launch
+import com.example.mixtape.R
 import java.util.UUID
 
+/**
+ * EditPlaylistDialog allows users to modify an existing playlist. 
+ * Features include:
+ * - Adding new audio/video files via a system file picker.
+ * - Removing existing items (either deleting completely if the user is the owner, or just unlinking).
+ * - Modifying tags for individual media items.
+ * - Staging all changes locally and applying them in bulk to Firebase.
+ */
 class EditPlaylistDialog : DialogFragment() {
 
     private var playlistName: String = ""
     private var playlistId: String = ""
-    private var originalMediaItems: MutableList<MediaItem> = mutableListOf() // Original items from Firebase
-    private var displayedItems: MutableList<MediaItem> = mutableListOf() // Items shown in UI (including pending)
+    private var originalOwnerId: String = "" 
+    private var originalMediaItems: MutableList<MediaItem> = mutableListOf()
+    private var displayedItems: MutableList<MediaItem> = mutableListOf()
     private var availableTags: List<String> = emptyList()
+    
     private lateinit var editableMediaAdapter: EditableMediaAdapter
     private lateinit var filePickerLauncher: ActivityResultLauncher<Intent>
     private lateinit var repository: FirebaseRepository
     private lateinit var btnAddContent: MaterialButton
     private lateinit var btnSaveChanges: MaterialButton
 
-    // Staging system for changes
+    // Holds all pending modifications until 'Save Changes' is pressed
     private val stagedChanges = StagedChanges()
 
-    // Callback to refresh parent activity
     private var onPlaylistUpdated: (() -> Unit)? = null
 
     companion object {
         private const val TAG = "EditPlaylistDialog"
 
+        /**
+         * Creates a new instance of the dialog with the necessary playlist metadata.
+         * Sorts items by their creation time before displaying.
+         */
         fun newInstance(
             playlistId: String,
             playlistName: String,
+            originalOwnerId: String,
             mediaItems: List<MediaItem>,
             availableTags: List<String>,
             onPlaylistUpdated: (() -> Unit)? = null
@@ -58,9 +73,9 @@ class EditPlaylistDialog : DialogFragment() {
             val args = Bundle()
             args.putString("PLAYLIST_ID", playlistId)
             args.putString("PLAYLIST_NAME", playlistName)
+            args.putString("ORIGINAL_OWNER_ID", originalOwnerId)
             fragment.arguments = args
 
-            // FIXED: Sort media items by entry order (createdAt) before adding to dialog
             val sortedMediaItems = mediaItems.sortedBy { item ->
                 when (item) {
                     is MediaItem.SongItem -> item.song.createdAt?.toDate()?.time ?: 0L
@@ -69,7 +84,7 @@ class EditPlaylistDialog : DialogFragment() {
             }
 
             fragment.originalMediaItems.addAll(sortedMediaItems)
-            fragment.displayedItems.addAll(sortedMediaItems) // Start with sorted items
+            fragment.displayedItems.addAll(sortedMediaItems)
             fragment.availableTags = availableTags.toList()
             fragment.onPlaylistUpdated = onPlaylistUpdated
             return fragment
@@ -78,10 +93,9 @@ class EditPlaylistDialog : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         repository = FirebaseRepository()
 
-        // Register file picker launcher
+        // Initialize the activity result launcher for file selection
         filePickerLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
@@ -95,6 +109,7 @@ class EditPlaylistDialog : DialogFragment() {
         val dialog = Dialog(requireContext())
         dialog.setContentView(R.layout.dialog_edit_playlist)
 
+        // Configure dialog sizing (90% width, 80% height)
         dialog.window?.setLayout(
             (resources.displayMetrics.widthPixels * 0.9).toInt(),
             (resources.displayMetrics.heightPixels * 0.8).toInt()
@@ -103,8 +118,7 @@ class EditPlaylistDialog : DialogFragment() {
 
         playlistId = arguments?.getString("PLAYLIST_ID") ?: ""
         playlistName = arguments?.getString("PLAYLIST_NAME") ?: "Playlist"
-
-        Log.d(TAG, "Dialog opened for playlist: $playlistName (ID: $playlistId)")
+        originalOwnerId = arguments?.getString("ORIGINAL_OWNER_ID") ?: ""
 
         setupDialog(dialog)
         return dialog
@@ -120,35 +134,26 @@ class EditPlaylistDialog : DialogFragment() {
 
         dialogTitle.text = "Edit: $playlistName"
 
-        // Setup RecyclerView with the copied media items
         itemsRecycler.layoutManager = LinearLayoutManager(requireContext())
         editableMediaAdapter = EditableMediaAdapter(
-            displayedItems, // These are copies, so modifications don't affect original data
+            displayedItems, 
             availableTags,
             onItemRemoved = { item -> stageItemRemoval(item) },
             onItemTagsChanged = { item, newTags -> stageTagUpdate(item, newTags) }
         )
         itemsRecycler.adapter = editableMediaAdapter
 
-        // Close button - dismiss without saving
-        btnClose.setOnClickListener {
-            Log.d(TAG, "Close button pressed - dismissing dialog")
-            dismiss()
-        }
-
+        btnClose.setOnClickListener { dismiss() }
         btnAddContent.setOnClickListener { openFilePicker() }
-
-        // Cancel button - dismiss without saving
-        btnCancel.setOnClickListener {
-            Log.d(TAG, "Cancel button pressed - dismissing dialog")
-            dismiss()
-        }
-
+        btnCancel.setOnClickListener { dismiss() }
         btnSaveChanges.setOnClickListener { saveAllChanges() }
 
         updateSaveButton()
     }
 
+    /**
+     * Launches the system file picker to select audio and video files.
+     */
     private fun openFilePicker() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "*/*"
@@ -165,238 +170,172 @@ class EditPlaylistDialog : DialogFragment() {
         }
     }
 
+    /**
+     * Processes files returned from the system picker and prepares them for staging.
+     */
     private fun handleSelectedFiles(data: Intent?) {
-        if (data == null) {
-            Log.d(TAG, "No data from file picker")
-            return
-        }
-
+        if (data == null) return
         val selectedFiles = mutableListOf<Uri>()
 
-        // Get selected file URIs
         data.clipData?.let { clipData ->
-            Log.d(TAG, "Multiple files selected: ${clipData.itemCount}")
             for (i in 0 until clipData.itemCount) {
                 selectedFiles.add(clipData.getItemAt(i).uri)
             }
         } ?: data.data?.let {
-            Log.d(TAG, "Single file selected")
             selectedFiles.add(it)
         }
 
         if (selectedFiles.isEmpty()) {
-            Log.w(TAG, "No files found")
             Toast.makeText(requireContext(), "No files selected", Toast.LENGTH_SHORT).show()
             return
         }
 
-        Log.d(TAG, "Staging ${selectedFiles.size} files for upload")
         stageFilesForUpload(selectedFiles)
     }
 
+    /**
+     * Extracts metadata from selected URIs and creates pending upload objects.
+     */
     private fun stageFilesForUpload(uris: List<Uri>) {
         var successCount = 0
         var failureCount = 0
 
         for (uri in uris) {
             try {
-                // Determine file type and extract basic info
                 val mimeType = requireContext().contentResolver.getType(uri) ?: ""
-
                 when {
                     mimeType.startsWith("audio/") -> {
                         val songTemplate = MediaMetadataExtractor.extractSong(requireContext(), uri)
                         if (songTemplate != null) {
                             stagePendingUpload(uri, songTemplate, true)
                             successCount++
-                        } else {
-                            failureCount++
-                        }
+                        } else { failureCount++ }
                     }
                     mimeType.startsWith("video/") -> {
                         val videoTemplate = MediaMetadataExtractor.extractVideo(requireContext(), uri)
                         if (videoTemplate != null) {
                             stagePendingUpload(uri, videoTemplate, false)
                             successCount++
-                        } else {
-                            failureCount++
-                        }
+                        } else { failureCount++ }
                     }
-                    else -> {
-                        Log.w(TAG, "Unsupported file type: $mimeType")
-                        failureCount++
-                    }
+                    else -> failureCount++
                 }
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing file $uri: ${e.message}", e)
                 failureCount++
             }
         }
 
-        // Show result
         val message = when {
-            successCount > 0 && failureCount == 0 -> "$successCount file(s) staged for upload"
+            successCount > 0 && failureCount == 0 -> "$successCount file(s) staged"
             successCount > 0 && failureCount > 0 -> "$successCount staged, $failureCount failed"
             else -> "No files could be processed"
         }
-
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         updateSaveButton()
     }
 
+    /**
+     * Adds an audio track to the local staging list and updates the UI.
+     */
     private fun stagePendingUpload(uri: Uri, template: Song, isAudio: Boolean) {
         val tempId = "temp_${UUID.randomUUID()}"
-
         val pendingUpload = PendingMediaUpload(
-            tempId = tempId,
-            uri = uri,
-            title = template.title,
-            artist = template.artist,
-            album = template.album,
-            durationSeconds = template.durationSeconds,
-            tags = template.tags,
-            fileName = getFileName(uri),
-            fileSize = template.fileSize,
-            mimeType = template.mimeType,
-            isAudio = isAudio,
-            isVideo = !isAudio
+            tempId = tempId, uri = uri, title = template.title,
+            artist = template.artist, album = template.album,
+            durationSeconds = template.durationSeconds, tags = template.tags,
+            fileName = getFileName(uri), fileSize = template.fileSize,
+            mimeType = template.mimeType, isAudio = isAudio, isVideo = !isAudio
         )
 
-        // Add to staged uploads
         stagedChanges.pendingUploads.add(pendingUpload)
 
-        // Create a temporary MediaItem for display
         val tempMediaItem = if (isAudio) {
-            MediaItem.SongItem(
-                Song(
-                    id = tempId,
-                    title = template.title,
-                    artist = template.artist,
-                    album = template.album,
-                    durationSeconds = template.durationSeconds,
-                    tags = template.tags
-                )
-            )
+            MediaItem.SongItem(Song(id = tempId, title = template.title, artist = template.artist,
+                album = template.album, durationSeconds = template.durationSeconds, tags = template.tags))
         } else {
-            MediaItem.VideoItem(
-                Video(
-                    id = tempId,
-                    title = template.title,
-                    artist = template.artist,
-                    album = template.album,
-                    durationSeconds = template.durationSeconds,
-                    tags = template.tags
-                )
-            )
+            MediaItem.VideoItem(Video(id = tempId, title = template.title, artist = template.artist,
+                album = template.album, durationSeconds = template.durationSeconds, tags = template.tags))
         }
 
-        // Add to displayed items
         displayedItems.add(tempMediaItem)
         editableMediaAdapter.notifyItemInserted(displayedItems.size - 1)
-
-        Log.d(TAG, "Staged ${if (isAudio) "song" else "video"}: ${template.title}")
     }
 
+    /**
+     * Adds a video to the local staging list and updates the UI.
+     */
     private fun stagePendingUpload(uri: Uri, template: Video, isAudio: Boolean) {
         val tempId = "temp_${UUID.randomUUID()}"
-
         val pendingUpload = PendingMediaUpload(
-            tempId = tempId,
-            uri = uri,
-            title = template.title,
-            artist = template.artist,
-            album = template.album,
-            durationSeconds = template.durationSeconds,
-            tags = template.tags,
-            fileName = getFileName(uri),
-            fileSize = template.fileSize,
-            mimeType = template.mimeType,
-            isAudio = isAudio,
-            isVideo = !isAudio
+            tempId = tempId, uri = uri, title = template.title,
+            artist = template.artist, album = template.album,
+            durationSeconds = template.durationSeconds, tags = template.tags,
+            fileName = getFileName(uri), fileSize = template.fileSize,
+            mimeType = template.mimeType, isAudio = isAudio, isVideo = !isAudio
         )
 
-        // Add to staged uploads
         stagedChanges.pendingUploads.add(pendingUpload)
 
-        // Create a temporary MediaItem for display
-        val tempMediaItem = MediaItem.VideoItem(
-            Video(
-                id = tempId,
-                title = template.title,
-                artist = template.artist,
-                album = template.album,
-                durationSeconds = template.durationSeconds,
-                tags = template.tags
-            )
-        )
+        val tempMediaItem = MediaItem.VideoItem(Video(id = tempId, title = template.title, 
+            artist = template.artist, album = template.album, durationSeconds = template.durationSeconds, 
+            tags = template.tags))
 
-        // Add to displayed items
         displayedItems.add(tempMediaItem)
         editableMediaAdapter.notifyItemInserted(displayedItems.size - 1)
-
-        Log.d(TAG, "Staged video: ${template.title}")
     }
 
+    /**
+     * Marks an item for removal. If it's a new (staged) item, it's removed immediately.
+     * If it's an existing item, the action depends on whether the user is the owner.
+     */
     private fun stageItemRemoval(item: MediaItem) {
-        // Check if it's a pending upload (temp ID) or existing item
         if (item.id.startsWith("temp_")) {
-            // Remove from pending uploads immediately - no staging needed
             stagedChanges.pendingUploads.removeAll { it.tempId == item.id }
-
-            // Remove from displayed items
             val position = displayedItems.indexOf(item)
             if (position != -1) {
                 displayedItems.removeAt(position)
                 editableMediaAdapter.notifyItemRemoved(position)
             }
-
-            Log.d(TAG, "Removed pending upload: ${item.title}")
         } else {
-            // For existing items, stage for complete deletion
-            stagedChanges.mediaItemChanges.add(
-                MediaItemChange(item.id, ChangeAction.DELETE_COMPLETELY)
-            )
+            val isOriginalOwner = repository.getCurrentUserId() == originalOwnerId
+            val action = if (isOriginalOwner) ChangeAction.DELETE_COMPLETELY else ChangeAction.REMOVE_FROM_PLAYLIST
 
-            // Remove from displayed items
+            stagedChanges.mediaItemChanges.add(MediaItemChange(item.id, action))
+
             val position = displayedItems.indexOf(item)
             if (position != -1) {
                 displayedItems.removeAt(position)
                 editableMediaAdapter.notifyItemRemoved(position)
             }
 
-            Log.d(TAG, "Staged complete deletion: ${item.title}")
-            Toast.makeText(requireContext(), "Will be deleted when changes are saved", Toast.LENGTH_SHORT).show()
+            val msg = if (isOriginalOwner) "Will be deleted from cloud" else "Will be removed from playlist"
+            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
         }
-
         updateSaveButton()
     }
 
+    /**
+     * Updates the staged tags for an existing media item.
+     */
     private fun stageTagUpdate(item: MediaItem, newTags: List<String>) {
         if (!item.id.startsWith("temp_")) {
-            // Only stage changes for existing items
-            // Remove any existing tag update for this item
             stagedChanges.mediaItemChanges.removeAll {
                 it.mediaItemId == item.id && it.action == ChangeAction.UPDATE_TAGS
             }
-
-            // Add new tag update
-            stagedChanges.mediaItemChanges.add(
-                MediaItemChange(item.id, ChangeAction.UPDATE_TAGS, newTags)
-            )
-
-            Log.d(TAG, "Staged tag update for: ${item.title}")
+            stagedChanges.mediaItemChanges.add(MediaItemChange(item.id, ChangeAction.UPDATE_TAGS, newTags))
             updateSaveButton()
         } else {
-            // For pending uploads, update the tags directly in memory
-            val pendingUpload = stagedChanges.pendingUploads.find { it.tempId == item.id }
-            pendingUpload?.tags?.clear()
-            pendingUpload?.tags?.addAll(newTags)
-
-            Log.d(TAG, "Updated tags for pending upload: ${item.title}")
+            stagedChanges.pendingUploads.find { it.tempId == item.id }?.let {
+                it.tags.clear()
+                it.tags.addAll(newTags)
+            }
         }
     }
 
+    /**
+     * Executes all staged changes sequentially and updates Firebase.
+     */
     private fun saveAllChanges() {
         if (!stagedChanges.hasChanges()) {
             Toast.makeText(requireContext(), "No changes to save", Toast.LENGTH_SHORT).show()
@@ -412,193 +351,98 @@ class EditPlaylistDialog : DialogFragment() {
                 var successCount = 0
                 var failureCount = 0
 
-                // Process pending uploads
+                // 1. Process New Uploads
                 for (pendingUpload in stagedChanges.pendingUploads) {
-                    if (uploadPendingMedia(pendingUpload)) {
-                        successCount++
-                    } else {
-                        failureCount++
-                    }
+                    if (uploadPendingMedia(pendingUpload)) successCount++ else failureCount++
                 }
 
-                // Process media item changes
+                // 2. Process Metadata/Structural Changes
                 for (change in stagedChanges.mediaItemChanges) {
-                    when (change.action) {
-                        ChangeAction.DELETE_COMPLETELY -> {
-                            if (deleteItemCompletely(change.mediaItemId)) {
-                                successCount++
-                            } else {
-                                failureCount++
-                            }
-                        }
-                        ChangeAction.UPDATE_TAGS -> {
-                            if (updateExistingItemTags(change.mediaItemId, change.newTags!!)) {
-                                successCount++
-                            } else {
-                                failureCount++
-                            }
-                        }
+                    val result = when (change.action) {
+                        ChangeAction.DELETE_COMPLETELY -> deleteItemCompletely(change.mediaItemId)
+                        ChangeAction.REMOVE_FROM_PLAYLIST -> removeItemFromPlaylist(change.mediaItemId)
+                        ChangeAction.UPDATE_TAGS -> updateExistingItemTags(change.mediaItemId, change.newTags!!)
                     }
+                    if (result) successCount++ else failureCount++
                 }
 
-                // Show results and close
                 activity?.runOnUiThread {
-                    val message = when {
-                        successCount > 0 && failureCount == 0 -> "All changes saved successfully!"
-                        successCount > 0 && failureCount > 0 -> "$successCount saved, $failureCount failed"
-                        failureCount > 0 -> "Failed to save changes"
-                        else -> "No changes processed"
-                    }
-
-                    Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-
                     if (successCount > 0) {
                         onPlaylistUpdated?.invoke()
                         dismiss()
                     } else {
-                        // Re-enable buttons if all failed
                         btnSaveChanges.isEnabled = true
                         btnSaveChanges.text = "Save Changes"
                         btnAddContent.isEnabled = true
+                        Toast.makeText(requireContext(), "Failed to save changes", Toast.LENGTH_SHORT).show()
                     }
                 }
-
             } catch (e: Exception) {
-                Log.e(TAG, "Error saving changes: ${e.message}", e)
-                activity?.runOnUiThread {
-                    Toast.makeText(requireContext(), "Error saving changes", Toast.LENGTH_LONG).show()
-                    btnSaveChanges.isEnabled = true
-                    btnSaveChanges.text = "Save Changes"
-                    btnAddContent.isEnabled = true
-                }
+                Log.e(TAG, "Error saving: ${e.message}")
             }
         }
     }
 
     private suspend fun uploadPendingMedia(pendingUpload: PendingMediaUpload): Boolean {
-        return try {
-            Log.d(TAG, "Uploading pending media: ${pendingUpload.title}")
-
-            if (pendingUpload.isAudio) {
-                val result = repository.uploadSong(
-                    fileUri = pendingUpload.uri,
-                    title = pendingUpload.title,
-                    artist = pendingUpload.artist,
-                    album = pendingUpload.album,
-                    duration = pendingUpload.durationSeconds,
-                    tags = pendingUpload.tags
-                )
-
-                result.fold(
-                    onSuccess = { song ->
-                        repository.addSongToPlaylist(playlistId, song.id).isSuccess
-                    },
-                    onFailure = { false }
-                )
-            } else {
-                val result = repository.uploadVideo(
-                    fileUri = pendingUpload.uri,
-                    title = pendingUpload.title,
-                    artist = pendingUpload.artist,
-                    album = pendingUpload.album,
-                    duration = pendingUpload.durationSeconds,
-                    tags = pendingUpload.tags
-                )
-
-                result.fold(
-                    onSuccess = { video ->
-                        repository.addVideoToPlaylist(playlistId, video.id).isSuccess
-                    },
-                    onFailure = { false }
-                )
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error uploading pending media: ${e.message}", e)
-            false
+        return if (pendingUpload.isAudio) {
+            repository.uploadSong(pendingUpload.uri, pendingUpload.title, pendingUpload.artist, 
+                pendingUpload.album, pendingUpload.durationSeconds, pendingUpload.tags)
+                .fold(onSuccess = { repository.addSongToPlaylist(playlistId, it.id).isSuccess }, onFailure = { false })
+        } else {
+            repository.uploadVideo(pendingUpload.uri, pendingUpload.title, pendingUpload.artist, 
+                pendingUpload.album, pendingUpload.durationSeconds, pendingUpload.tags)
+                .fold(onSuccess = { repository.addVideoToPlaylist(playlistId, it.id).isSuccess }, onFailure = { false })
         }
     }
 
     private suspend fun deleteItemCompletely(itemId: String): Boolean {
-        return try {
-            val originalItem = originalMediaItems.find { it.id == itemId }
-            if (originalItem != null) {
-                when (originalItem) {
-                    is MediaItem.SongItem -> repository.deleteSongCompletely(itemId).isSuccess
-                    is MediaItem.VideoItem -> repository.deleteVideoCompletely(itemId).isSuccess
-                }
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error completely deleting item: ${e.message}", e)
-            false
+        val originalItem = originalMediaItems.find { it.id == itemId } ?: return false
+        return when (originalItem) {
+            is MediaItem.SongItem -> repository.deleteSongCompletely(itemId).isSuccess
+            is MediaItem.VideoItem -> repository.deleteVideoCompletely(itemId).isSuccess
+        }
+    }
+
+    private suspend fun removeItemFromPlaylist(itemId: String): Boolean {
+        val originalItem = originalMediaItems.find { it.id == itemId } ?: return false
+        return when (originalItem) {
+            is MediaItem.SongItem -> repository.removeSongFromPlaylist(playlistId, itemId).isSuccess
+            is MediaItem.VideoItem -> repository.removeVideoFromPlaylist(playlistId, itemId).isSuccess
         }
     }
 
     private suspend fun updateExistingItemTags(itemId: String, newTags: List<String>): Boolean {
-        return try {
-            val originalItem = originalMediaItems.find { it.id == itemId }
-            if (originalItem != null) {
-                when (originalItem) {
-                    is MediaItem.SongItem -> repository.updateSongTags(itemId, newTags).isSuccess
-                    is MediaItem.VideoItem -> repository.updateVideoTags(itemId, newTags).isSuccess
-                }
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating tags: ${e.message}", e)
-            false
+        val originalItem = originalMediaItems.find { it.id == itemId } ?: return false
+        return when (originalItem) {
+            is MediaItem.SongItem -> repository.updateSongTags(itemId, newTags).isSuccess
+            is MediaItem.VideoItem -> repository.updateVideoTags(itemId, newTags).isSuccess
         }
     }
 
     private fun updateSaveButton() {
         val hasChanges = stagedChanges.hasChanges()
         btnSaveChanges.isEnabled = hasChanges
-        btnSaveChanges.text = if (hasChanges) {
-            val count = stagedChanges.getChangeCount()
-            "Save Changes ($count)"
-        } else {
-            "Save Changes"
-        }
+        btnSaveChanges.text = if (hasChanges) "Save Changes (${stagedChanges.getChangeCount()})" else "Save Changes"
     }
 
     private fun getFileName(uri: Uri): String {
-        var fileName = "Unknown File"
+        var fileName = "Unknown"
         try {
-            val cursor = requireContext().contentResolver.query(uri, null, null, null, null)
-            cursor?.use {
+            requireContext().contentResolver.query(uri, null, null, null, null)?.use {
                 if (it.moveToFirst()) {
-                    val nameIndex = it.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                    if (nameIndex != -1) {
-                        fileName = it.getString(nameIndex) ?: "Unknown File"
-                    }
+                    val idx = it.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                    if (idx != -1) fileName = it.getString(idx) ?: "Unknown"
                 }
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting file name: ${e.message}")
-        }
+        } catch (e: Exception) { }
         return fileName
     }
 
-    override fun onCancel(dialog: DialogInterface) {
-        super.onCancel(dialog)
-        // When dialog is cancelled (back button, outside tap), changes are lost
-        // Since we're working with copies, no changes are applied to the original data
-        Log.d(TAG, "Dialog cancelled - staged changes discarded")
-    }
-
-    override fun onDismiss(dialog: DialogInterface) {
-        super.onDismiss(dialog)
-        // When dialog is dismissed without saving, changes are lost
-        // Since we're working with copies, no changes are applied to the original data
-        Log.d(TAG, "Dialog dismissed - staged changes discarded")
-    }
+    override fun onCancel(dialog: DialogInterface) { super.onCancel(dialog) }
+    override fun onDismiss(dialog: DialogInterface) { super.onDismiss(dialog) }
 
     fun updateAvailableTags(newTags: List<String>) {
         availableTags = newTags.toList()
-        if (::editableMediaAdapter.isInitialized) {
-            editableMediaAdapter.updateAvailableTags(availableTags)
-        }
+        if (::editableMediaAdapter.isInitialized) editableMediaAdapter.updateAvailableTags(availableTags)
     }
 }

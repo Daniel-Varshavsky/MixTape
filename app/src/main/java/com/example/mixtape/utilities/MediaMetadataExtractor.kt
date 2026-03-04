@@ -8,12 +8,17 @@ import android.util.Log
 import com.example.mixtape.model.Song
 import com.example.mixtape.model.Video
 
+/**
+ * Utility for extracting metadata (title, artist, album, duration, etc.) from local media files.
+ * Uses MediaMetadataRetriever to parse file headers before uploading to Firebase.
+ */
 object MediaMetadataExtractor {
 
     private const val TAG = "MediaMetadataExtractor"
 
     /**
-     * Extract metadata and create a Song object from an audio file URI
+     * Extracts metadata from an audio file and maps it to a Song model.
+     * Also attempts to extract and clean the 'Genre' tag to use as an initial tag.
      */
     fun extractSong(context: Context, uri: Uri): Song? {
         return try {
@@ -45,11 +50,10 @@ object MediaMetadataExtractor {
                 val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 val duration = ((durationStr?.toLongOrNull() ?: 0L) / 1000).toInt() // Convert ms to seconds
 
-                // Extract genre and add to tags
+                // Extract genre and add to tags for better discoverability
                 val tags = mutableListOf<String>()
                 val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
                 if (!genre.isNullOrBlank()) {
-                    // Clean up genre (sometimes it comes with extra info)
                     val cleanGenre = cleanGenre(genre)
                     if (cleanGenre.isNotBlank()) {
                         tags.add(cleanGenre)
@@ -57,15 +61,12 @@ object MediaMetadataExtractor {
                     }
                 }
 
-                Log.d(TAG, "Extracted song: $title by $artist (Genre: ${tags.joinToString()})")
-
-                // Return Song object with metadata (will be given ID when uploaded to Firebase)
                 Song(
                     title = title,
                     artist = artist,
                     album = album,
                     durationSeconds = duration,
-                    tags = tags, // Contains genre if found
+                    tags = tags,
                     fileSize = fileSize,
                     mimeType = mimeType
                 )
@@ -85,7 +86,7 @@ object MediaMetadataExtractor {
     }
 
     /**
-     * Extract metadata and create a Video object from a video file URI
+     * Extracts metadata from a video file and maps it to a Video model.
      */
     fun extractVideo(context: Context, uri: Uri): Video? {
         return try {
@@ -117,7 +118,6 @@ object MediaMetadataExtractor {
                 val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 val duration = ((durationStr?.toLongOrNull() ?: 0L) / 1000).toInt() // Convert ms to seconds
 
-                // Extract genre for videos too (some video formats support this)
                 val tags = mutableListOf<String>()
                 val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
                 if (!genre.isNullOrBlank()) {
@@ -128,15 +128,12 @@ object MediaMetadataExtractor {
                     }
                 }
 
-                Log.d(TAG, "Extracted video: $title by $artist (Genre: ${tags.joinToString()})")
-
-                // Return Video object with metadata (will be given ID when uploaded to Firebase)
                 Video(
                     title = title,
                     artist = artist,
                     album = album,
                     durationSeconds = duration,
-                    tags = tags, // Contains genre if found
+                    tags = tags,
                     fileSize = fileSize,
                     mimeType = mimeType
                 )
@@ -156,18 +153,18 @@ object MediaMetadataExtractor {
     }
 
     /**
-     * Clean up genre string - sometimes it comes with parentheses, numbers, or extra formatting
+     * Sanitizes genre strings. Handles ID3v1 numeric genres (e.g., "(32)") 
+     * and removes extra white spaces or formatting issues.
      */
     private fun cleanGenre(genre: String): String {
         return genre
             .trim()
             .removePrefix("(")
             .removeSuffix(")")
-            .replace(Regex("^\\d+\\s*"), "") // Remove leading numbers like "32 Rock" -> "Rock"
-            .replace(Regex("\\s*\\(\\d+\\)"), "") // Remove numbered parentheses like "Rock (32)" -> "Rock"
+            .replace(Regex("^\\d+\\s*"), "") // Remove leading numbers
+            .replace(Regex("\\s*\\(\\d+\\)"), "") // Remove trailing numbered parentheses
             .trim()
-            .lowercase() // Convert to lowercase for consistency
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } // Capitalize first letter
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
     }
 
     private fun getFileName(context: Context, uri: Uri): String {

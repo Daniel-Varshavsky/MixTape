@@ -6,6 +6,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mixtape.R
 import com.google.android.material.chip.Chip
 
+/**
+ * Adapter used in the Tag Management sidebar. 
+ * Allows users to view all global tags and delete them using a trash can icon.
+ */
 class ManageableTagAdapter(
     private val onDeleteTag: (String) -> Unit
 ) : RecyclerView.Adapter<ManageableTagAdapter.ViewHolder>() {
@@ -15,6 +19,7 @@ class ManageableTagAdapter(
     class ViewHolder(val chip: Chip) : RecyclerView.ViewHolder(chip)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        // Inflates the standard filter chip layout
         val chipContainer = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_filter_tag_chip, parent, false)
 
@@ -26,18 +31,19 @@ class ManageableTagAdapter(
         val tag = tags[position]
         holder.chip.text = tag
 
-        // Make it non-clickable (not checkable)
+        // Configuration: Static display (not clickable/checkable) but with a close icon for deletion
         holder.chip.isCheckable = false
         holder.chip.isClickable = false
         holder.chip.isFocusable = false
 
-        // Add close icon (delete functionality)
+        // Customizing the close icon to look like a delete/trash action
         holder.chip.isCloseIconVisible = true
-
-        // Set close icon to white trash can
         holder.chip.setCloseIconResource(R.drawable.outline_delete_24)
         holder.chip.setCloseIconTintResource(R.color.white)
-        holder.chip.closeIconSize = 18f * holder.chip.context.resources.displayMetrics.density
+        
+        // Scale icon size relative to screen density
+        val density = holder.chip.context.resources.displayMetrics.density
+        holder.chip.closeIconSize = 18f * density
 
         holder.chip.setOnCloseIconClickListener {
             onDeleteTag(tag)

@@ -12,12 +12,19 @@ import com.example.mixtape.utilities.FirebaseRepository
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
+/**
+ * AddPlaylistDialog provides an interface for users to either create a brand-new playlist
+ * or join an existing one using a 6-character share code.
+ */
 class AddPlaylistDialog : DialogFragment() {
 
     private lateinit var repository: FirebaseRepository
     private var onPlaylistCreated: ((String) -> Unit)? = null
 
     companion object {
+        /**
+         * Factory method to create a new instance of the dialog with a completion callback.
+         */
         fun newInstance(onPlaylistCreated: (String) -> Unit): AddPlaylistDialog {
             val dialog = AddPlaylistDialog()
             dialog.onPlaylistCreated = onPlaylistCreated
@@ -29,35 +36,51 @@ class AddPlaylistDialog : DialogFragment() {
         val dialog = Dialog(requireContext())
         dialog.setContentView(R.layout.dialog_add_playlist)
 
+        // Set dialog width to match parent and wrap content height
         dialog.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
+        // Use a transparent background to allow the custom layout's rounded corners to show
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         repository = FirebaseRepository()
 
         val cancel = dialog.findViewById<MaterialButton>(R.id.btnCancel)
         val create = dialog.findViewById<MaterialButton>(R.id.btnCreate)
-        val input = dialog.findViewById<EditText>(R.id.playlistNameInput)
+        val join = dialog.findViewById<MaterialButton>(R.id.btnJoin)
+        val nameInput = dialog.findViewById<EditText>(R.id.playlistNameInput)
+        val shareCodeInput = dialog.findViewById<EditText>(R.id.shareCodeInput)
 
         cancel.setOnClickListener {
             dismiss()
         }
 
         create.setOnClickListener {
-            val name = input.text.toString().trim()
+            val name = nameInput.text.toString().trim()
             if (name.isNotEmpty()) {
                 createPlaylist(name, create)
             } else {
-                input.error = "Playlist name required"
+                nameInput.error = "Playlist name required"
+            }
+        }
+
+        join.setOnClickListener {
+            val code = shareCodeInput.text.toString().trim().uppercase()
+            if (code.length == 6) {
+                joinPlaylist(code, join)
+            } else {
+                shareCodeInput.error = "6-character code required"
             }
         }
 
         return dialog
     }
 
+    /**
+     * Creates a new playlist in Firebase and notifies the listener upon success.
+     */
     private fun createPlaylist(name: String, createButton: MaterialButton) {
         createButton.isEnabled = false
         createButton.text = "Creating..."
@@ -72,23 +95,15 @@ class AddPlaylistDialog : DialogFragment() {
                 )
 
                 result.onSuccess { playlist ->
-                    createButton.isEnabled = true
-                    createButton.text = "Create"
-
                     Toast.makeText(
                         requireContext(),
                         "Playlist '$name' created successfully!",
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    // Notify parent activity to refresh
                     onPlaylistCreated?.invoke(playlist.id)
-
                     dismiss()
                 }.onFailure { exception ->
-                    createButton.isEnabled = true
-                    createButton.text = "Create"
-
                     Toast.makeText(
                         requireContext(),
                         "Error creating playlist: ${exception.message}",
@@ -96,14 +111,54 @@ class AddPlaylistDialog : DialogFragment() {
                     ).show()
                 }
             } catch (e: Exception) {
-                createButton.isEnabled = true
-                createButton.text = "Create"
-
                 Toast.makeText(
                     requireContext(),
                     "Error: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+            } finally {
+                createButton.isEnabled = true
+                createButton.text = "Create New Playlist"
+            }
+        }
+    }
+
+    /**
+     * Attempts to join a playlist using a unique share code.
+     */
+    private fun joinPlaylist(shareCode: String, joinButton: MaterialButton) {
+        joinButton.isEnabled = false
+        joinButton.text = "Joining..."
+
+        lifecycleScope.launch {
+            try {
+                val result = repository.joinPlaylistByShareCode(shareCode)
+
+                result.onSuccess { playlist ->
+                    Toast.makeText(
+                        requireContext(),
+                        "Successfully joined '${playlist.name}'!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    onPlaylistCreated?.invoke(playlist.id)
+                    dismiss()
+                }.onFailure { exception ->
+                    Toast.makeText(
+                        requireContext(),
+                        "Error joining: ${exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                joinButton.isEnabled = true
+                joinButton.text = "Join Playlist"
             }
         }
     }

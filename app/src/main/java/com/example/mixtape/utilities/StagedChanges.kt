@@ -4,22 +4,40 @@ import com.example.mixtape.model.ChangeAction
 import com.example.mixtape.model.MediaItemChange
 import com.example.mixtape.model.PendingMediaUpload
 
-// Container for all staged changes in the edit dialog
-// Only contains changes that need to be saved when user clicks "Save Changes"
+/**
+ * A data container used to implement a "staging" pattern for playlist edits.
+ * 
+ * Instead of applying changes to Firebase immediately as the user interacts with the UI, 
+ * changes are collected here. This allows the user to undo or cancel their session 
+ * without triggering unnecessary network calls or leaving the database in a partial state.
+ */
 data class StagedChanges(
+    /** Items that have been picked from local storage but not yet uploaded to Firebase. */
     val pendingUploads: MutableList<PendingMediaUpload> = mutableListOf(),
+    
+    /** 
+     * Modifications to existing cloud items (e.g., tag updates or complete deletions).
+     * This follows a command-like pattern to track intended side effects.
+     */
     val mediaItemChanges: MutableList<MediaItemChange> = mutableListOf()
 ) {
+    /** Checks if there are no modifications staged. */
     fun isEmpty(): Boolean {
         return pendingUploads.isEmpty() && mediaItemChanges.isEmpty()
     }
 
+    /** Returns true if the user has performed any actions that require a save. */
     fun hasChanges(): Boolean = !isEmpty()
 
+    /** Returns the total count of distinct operations pending. */
     fun getChangeCount(): Int {
         return pendingUploads.size + mediaItemChanges.size
     }
 
+    /**
+     * Generates a human-readable summary of the staged changes.
+     * Useful for confirmation dialogs or debug logging.
+     */
     fun getDescription(): String {
         val parts = mutableListOf<String>()
 
@@ -37,6 +55,6 @@ data class StagedChanges(
             parts.add("$tagUpdates tag update(s)")
         }
 
-        return parts.joinToString(", ")
+        return if (parts.isEmpty()) "No changes" else parts.joinToString(", ")
     }
 }
